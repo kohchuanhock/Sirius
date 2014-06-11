@@ -1,0 +1,321 @@
+/*==========================================================================
+	  SiriusPSB - A Generic System for Analysis of Biological Sequences
+	        http://compbio.ddns.comp.nus.edu.sg/~sirius/index.php
+============================================================================
+	  Copyright (C) 2007 by Chuan Hock Koh
+	
+	  This program is free software; you can redistribute it and/or
+	  modify it under the terms of the GNU General Public
+	  License as published by the Free Software Foundation; either
+	  version 3 of the License, or (at your option) any later version.
+	
+	  This program is distributed in the hope that it will be useful,
+	  but WITHOUT ANY WARRANTY; without even the implied warranty of
+	  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+	  General Public License for more details.
+	  	
+	  You should have received a copy of the GNU General Public License
+	  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+==========================================================================*/
+package sirius.trainer.features.gui;
+
+import javax.swing.*;
+import javax.swing.filechooser.FileNameExtensionFilter;
+
+import sirius.main.ApplicationData;
+import sirius.trainer.features.Feature;
+import sirius.trainer.main.*;
+import sirius.trainer.step2.DefineFeaturePane;
+import sirius.trainer.step2.FeatureTableModel;
+
+import java.awt.*;
+import java.awt.event.*;
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileReader;
+import java.io.FileWriter;
+
+public class SelectFeaturesDialog extends JDialog implements ActionListener{
+	static final long serialVersionUID = sirius.Sirius.version;
+	JButton openFileButton;
+	JButton saveFeaturesButton;
+	JButton selectButton;
+	JButton removeButton;	
+	JTextField fileTopTextField;
+	JTextField windowFromTextField;
+	JTextField windowToTextField;
+	JButton windowMarkButton;
+	JButton fileMarkTopButton;
+	JButton fileUnmarkAllButton;
+	JButton fileInvertButton;
+	JTextField topTextField;
+	JButton markTopButton;
+	JButton unmarkAllButton;
+	JButton invertButton;	
+	//JTextField filenameField;
+	ApplicationData applicationData;
+	JInternalFrame parent;
+	
+	FeatureTableModel featureTableModel;
+	FeatureTableModel selectedFeatureTableModel;
+	
+	String lastOpenedFile;
+	
+	public SelectFeaturesDialog(JInternalFrame parent,ApplicationData applicationData,DefineFeaturePane defineFeaturePane){
+		setTitle("Select Features");
+		setModalityType(Dialog.ModalityType.APPLICATION_MODAL);
+		//setSize(1300,800);		
+		this.applicationData = applicationData;
+		this.parent = parent;		
+		
+		JPanel featuresInFilePanel = new JPanel(new BorderLayout());
+		featuresInFilePanel.setBorder(BorderFactory.createCompoundBorder(
+	   		BorderFactory.createTitledBorder("Features In File"),
+	   		BorderFactory.createEmptyBorder(5,5,5,5)));
+		
+		featureTableModel = new FeatureTableModel(true,defineFeaturePane);
+		JTable featureTable = new JTable(featureTableModel);
+		featureTable.getColumnModel().getColumn(0).setMaxWidth(50);
+        featureTable.getColumnModel().getColumn(1).setMaxWidth(20); 
+        featureTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+		JScrollPane featureTableScrollPane = new JScrollPane(featureTable);
+		featuresInFilePanel.add(featureTableScrollPane,BorderLayout.CENTER);
+		
+		openFileButton = new JButton("Open File");
+		openFileButton.addActionListener(this);
+		featuresInFilePanel.add(openFileButton,BorderLayout.SOUTH);
+		
+		JPanel fileMarkPanel = new JPanel();
+		JLabel windowFromLabel = new JLabel("Window From: ");
+		windowFromTextField = new JTextField(3);
+		JLabel windowToLabel = new JLabel("To: ");
+		windowToTextField = new JTextField(3);
+		windowMarkButton = new JButton("Mark");
+		JLabel fileTopLabel = new JLabel("Top: ");
+		fileTopTextField = new JTextField(5);
+		fileMarkTopButton = new JButton("Mark");
+		fileUnmarkAllButton = new JButton("Unmark All");
+		fileInvertButton = new JButton("Invert");
+		fileMarkTopButton.addActionListener(this);
+		fileUnmarkAllButton.addActionListener(this);
+		fileInvertButton.addActionListener(this);
+		windowMarkButton.addActionListener(this);
+		fileMarkPanel.add(windowFromLabel);
+		fileMarkPanel.add(windowFromTextField);
+		fileMarkPanel.add(windowToLabel);
+		fileMarkPanel.add(windowToTextField);
+		fileMarkPanel.add(windowMarkButton);
+		fileMarkPanel.add(fileTopLabel);
+		fileMarkPanel.add(fileTopTextField);
+		fileMarkPanel.add(fileMarkTopButton);
+		fileMarkPanel.add(fileUnmarkAllButton);
+		fileMarkPanel.add(fileInvertButton);
+		featuresInFilePanel.add(fileMarkPanel,BorderLayout.NORTH);
+		
+		GridBagLayout selectRemoveGridBag = new GridBagLayout();
+		GridBagConstraints selectRemoveConstraints = new GridBagConstraints();
+		JPanel selectRemovePanel = new JPanel(selectRemoveGridBag);
+		selectButton = new JButton(" >>> ");
+		selectButton.addActionListener(this);		
+		removeButton = new JButton(" <<< ");
+		removeButton.addActionListener(this);
+		selectRemoveConstraints.weightx = 1.0;
+		selectRemoveConstraints.weighty = 1.0;
+		selectRemoveConstraints.gridwidth = GridBagConstraints.REMAINDER;
+		selectRemovePanel.add(selectButton,selectRemoveConstraints);
+		selectRemovePanel.add(removeButton,selectRemoveConstraints);		
+		
+		JPanel selectedFeaturesPanel = new JPanel(new BorderLayout());
+		selectedFeaturesPanel.setBorder(BorderFactory.createCompoundBorder(
+	   		BorderFactory.createTitledBorder("Selected Features"),
+	   		BorderFactory.createEmptyBorder(5,5,5,5)));
+		
+		selectedFeatureTableModel = new FeatureTableModel(true,defineFeaturePane);
+		JTable selectedFeatureTable = new JTable(selectedFeatureTableModel);
+		selectedFeatureTable.getColumnModel().getColumn(0).setMaxWidth(50);
+		selectedFeatureTable.getColumnModel().getColumn(1).setMaxWidth(20); 
+        selectedFeatureTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+		JScrollPane selectedFeatureTableScrollPane = new JScrollPane(selectedFeatureTable);
+		selectedFeaturesPanel.add(selectedFeatureTableScrollPane,BorderLayout.CENTER);
+		
+		saveFeaturesButton = new JButton("Save Features");
+		saveFeaturesButton.addActionListener(this);
+		selectedFeaturesPanel.add(saveFeaturesButton,BorderLayout.SOUTH);
+		
+		JPanel markPanel = new JPanel();
+		JLabel topLabel = new JLabel("Top: ");
+		topTextField = new JTextField(5);
+		markTopButton = new JButton("Mark");
+		unmarkAllButton = new JButton("Unmark All");
+		invertButton = new JButton("Invert");
+		markTopButton.addActionListener(this);
+		unmarkAllButton.addActionListener(this);
+		invertButton.addActionListener(this);		
+		markPanel.add(topLabel);
+		markPanel.add(topTextField);
+		markPanel.add(markTopButton);
+		markPanel.add(unmarkAllButton);
+		markPanel.add(invertButton);		
+		selectedFeaturesPanel.add(markPanel,BorderLayout.NORTH);
+		
+		GridBagLayout gridbag = new GridBagLayout();
+        GridBagConstraints c = new GridBagConstraints();
+        setLayout(gridbag);
+        c.fill = GridBagConstraints.BOTH;        
+        c.weighty = 1.0;
+        c.weightx = 50.0;
+		add(featuresInFilePanel,c);
+		c.weightx = 1.0;
+		add(selectRemovePanel,c);
+		c.weightx = 50.0;
+		add(selectedFeaturesPanel,c);
+		this.pack();
+	}
+	
+	public void actionPerformed(ActionEvent ae){
+		if(ae.getSource().equals(openFileButton)){
+			if(applicationData.getOneThread() == null){
+	    		applicationData.setOneThread(new Thread(){	      	
+				public void run(){
+					try{						
+						JFileChooser fc;
+				    	//AHFU_TEMP: This is for the ease of selection - should be deleted if were to really release this program
+						if(lastOpenedFile == null){
+							String temp = SiriusSettings.getInformation("LastStep1SettingsFileLocation: ");
+							if(temp != null)
+								fc = new JFileChooser(temp);
+							else
+								fc = new JFileChooser();
+						}
+						else
+							fc = new JFileChooser(lastOpenedFile);
+				    	//end of AHFU TEMP
+						FileNameExtensionFilter filter = new FileNameExtensionFilter(
+					            "Features Files", "features");
+					    fc.setFileFilter(filter);
+						int returnVal = fc.showOpenDialog(parent);
+						if (returnVal == JFileChooser.APPROVE_OPTION) {
+				            File file = fc.getSelectedFile();			
+				            lastOpenedFile = file.getAbsolutePath();
+			            	BufferedReader in = new BufferedReader(new FileReader (file.getAbsolutePath()));
+			            	boolean foundAtLeastOne = false;
+			            	String line;
+			            	featureTableModel.setEmpty();
+			            	boolean rejectedAtLeastOne = false;
+			            	while ((line = in.readLine()) != null){
+			            		if(line.indexOf("Step 2: ") != -1){
+			            			foundAtLeastOne = true;			            			
+			            			//For load settings
+			            			//Feature tempData = new Feature(applicationData);
+			            			//accepted = tempData.loadSettings(file.getParent(), line);
+			            			Feature tempData = Feature.loadSettings(applicationData, file.getParent(), line);
+			            			if(tempData != null)
+			            				featureTableModel.add(tempData);
+			            			else if(rejectedAtLeastOne == false)
+			            				rejectedAtLeastOne = true;
+			            		}
+			            	}
+			            	in.close();
+			            	if(rejectedAtLeastOne == true)
+			            		JOptionPane.showMessageDialog(parent,"Note that not all features in " + 
+			            			file.getAbsolutePath() + " are added.\n" + 
+			            			"Rejected features are those with windowFrom < 0" + 
+			            			" because the sequences +1_Index is -1","Warning", 
+			            			JOptionPane.WARNING_MESSAGE);			            		
+			            	if(foundAtLeastOne){
+			            		//load successfully - do nothing
+			            	}
+			            	else
+			            		JOptionPane.showMessageDialog(parent,file.getAbsolutePath() + 
+			            			" does not contains Step 2 Settings","Load Step 2 Settings", 
+			            			JOptionPane.WARNING_MESSAGE);		            	        		            	
+			    		}		
+					}    
+		  			catch(Exception e){
+		  				JOptionPane.showMessageDialog(null,"Exception Occured","Error",JOptionPane.ERROR_MESSAGE);
+		  				e.printStackTrace();}
+		  			applicationData.setOneThread(null);
+				}});
+	      		applicationData.getOneThread().setPriority(Thread.MIN_PRIORITY); // UI has most priority
+	      		applicationData.getOneThread().start();
+	    	}
+	    	else{
+	     		JOptionPane.showMessageDialog(parent,"Can't load step 2 settings file now,\n"
+	      			+ "currently busy with other IO","Load Step 2 Settings file", JOptionPane.WARNING_MESSAGE);
+	    	}
+		}else if(ae.getSource().equals(saveFeaturesButton)){			
+			if(selectedFeatureTableModel.getRowCount() == 0){
+				JOptionPane.showMessageDialog(parent,"No Features To Save","Load Step 2 Settings file", JOptionPane.WARNING_MESSAGE);
+				return;
+			}			
+			try{				
+				JFileChooser fc;				    	
+		    	fc = new JFileChooser(applicationData.getWorkingDirectory());
+		    	FileNameExtensionFilter filter = new FileNameExtensionFilter(
+			            "Features Files", "features");
+			    fc.setFileFilter(filter);	
+				int returnVal = fc.showSaveDialog(parent);
+				if (returnVal == JFileChooser.APPROVE_OPTION) {
+					File file = fc.getSelectedFile();				        
+					String savingFilename = file.getAbsolutePath();
+					if(savingFilename.indexOf(".features") == -1)
+						savingFilename += ".features";				
+					BufferedWriter output = new BufferedWriter(new FileWriter(savingFilename));			
+					for(int x = 0; x < selectedFeatureTableModel.getData().size();  x++){
+						output.write("Step 2: " + selectedFeatureTableModel.getData().get(x).saveString(file.getParent()));
+						output.newLine();
+					}  	    				
+					output.close();		
+					this.dispose();
+				}
+			}catch(Exception e){
+				JOptionPane.showMessageDialog(null,"Exception Occured While Writing Selected Features To File","Error",JOptionPane.ERROR_MESSAGE);
+				e.printStackTrace();}		
+		}else if(ae.getSource().equals(markTopButton)){
+			try{
+				int markTopX = validateInteger(topTextField,"Top Field");
+				selectedFeatureTableModel.markTop(markTopX);
+			}catch(Exception ex){				
+				//do nothing here because the exception should already been reported to user in validateInteger method
+			}
+		}else if(ae.getSource().equals(unmarkAllButton)){
+			selectedFeatureTableModel.unmarkAll();
+		}else if(ae.getSource().equals(invertButton)){
+			selectedFeatureTableModel.invertBox();
+		}else if(ae.getSource().equals(fileMarkTopButton)){
+			try{
+				int markTopX = validateInteger(fileTopTextField,"Top Field");
+				featureTableModel.markTop(markTopX);
+			}catch(Exception ex){				
+				//do nothing here because the exception should already been reported to user in validateInteger method
+			}
+		}else if(ae.getSource().equals(fileUnmarkAllButton)){
+			featureTableModel.unmarkAll();			
+		}else if(ae.getSource().equals(fileInvertButton)){
+			featureTableModel.invertBox();
+		}else if(ae.getSource().equals(selectButton)){
+			selectedFeatureTableModel.getMarked(featureTableModel);
+		}else if(ae.getSource().equals(removeButton)){
+			featureTableModel.getMarked(selectedFeatureTableModel);
+		}else if(ae.getSource().equals(windowMarkButton)){	
+			try{
+				int windowFrom = validateInteger(windowFromTextField,"Window From Field");
+				int windowTo = validateInteger(windowToTextField,"Window To Field");
+				featureTableModel.markWindowBoundary(windowFrom,windowTo);
+			}catch(Exception ex){				
+				//do nothing here because the exception should already been reported to user in validateInteger method
+			}
+		}
+	}
+	private int validateInteger(JTextField textField,String name) throws NumberFormatException{
+		try{
+			return Integer.parseInt(textField.getText());
+		}
+		catch(NumberFormatException e){
+			JOptionPane.showMessageDialog(parent,"Input only Integers into " + name,"ERROR",JOptionPane.ERROR_MESSAGE);
+   			textField.requestFocusInWindow();
+   			throw new NumberFormatException();
+		}
+	}
+}

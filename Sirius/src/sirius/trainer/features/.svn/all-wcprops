@@ -1,0 +1,77 @@
+K 25
+svn:wc:ra_dav:version-url
+V 64
+/svnroot/siriuspsb/!svn/ver/7/Sirius/src/sirius/trainer/features
+END
+BasicPhysiochemicalFeature.java
+K 25
+svn:wc:ra_dav:version-url
+V 97
+/svnroot/siriuspsb/!svn/ver/32/Sirius/src/sirius/trainer/features/BasicPhysiochemicalFeature.java
+END
+ClassifierFeature.java
+K 25
+svn:wc:ra_dav:version-url
+V 88
+/svnroot/siriuspsb/!svn/ver/57/Sirius/src/sirius/trainer/features/ClassifierFeature.java
+END
+Basic2PhysiochemicalFeature.java
+K 25
+svn:wc:ra_dav:version-url
+V 98
+/svnroot/siriuspsb/!svn/ver/32/Sirius/src/sirius/trainer/features/Basic2PhysiochemicalFeature.java
+END
+RatioOfKGramFeature.java
+K 25
+svn:wc:ra_dav:version-url
+V 90
+/svnroot/siriuspsb/!svn/ver/28/Sirius/src/sirius/trainer/features/RatioOfKGramFeature.java
+END
+MetaFeature.java
+K 25
+svn:wc:ra_dav:version-url
+V 82
+/svnroot/siriuspsb/!svn/ver/18/Sirius/src/sirius/trainer/features/MetaFeature.java
+END
+AdvancedPhysiochemicalFeature.java
+K 25
+svn:wc:ra_dav:version-url
+V 100
+/svnroot/siriuspsb/!svn/ver/91/Sirius/src/sirius/trainer/features/AdvancedPhysiochemicalFeature.java
+END
+PositionSpecificFeature.java
+K 25
+svn:wc:ra_dav:version-url
+V 94
+/svnroot/siriuspsb/!svn/ver/91/Sirius/src/sirius/trainer/features/PositionSpecificFeature.java
+END
+MultipleKGramFeature.java
+K 25
+svn:wc:ra_dav:version-url
+V 91
+/svnroot/siriuspsb/!svn/ver/28/Sirius/src/sirius/trainer/features/MultipleKGramFeature.java
+END
+GenerateArff.java
+K 25
+svn:wc:ra_dav:version-url
+V 83
+/svnroot/siriuspsb/!svn/ver/76/Sirius/src/sirius/trainer/features/GenerateArff.java
+END
+GenerateFeatures.java
+K 25
+svn:wc:ra_dav:version-url
+V 87
+/svnroot/siriuspsb/!svn/ver/57/Sirius/src/sirius/trainer/features/GenerateFeatures.java
+END
+Feature.java
+K 25
+svn:wc:ra_dav:version-url
+V 78
+/svnroot/siriuspsb/!svn/ver/73/Sirius/src/sirius/trainer/features/Feature.java
+END
+KGramFeature.java
+K 25
+svn:wc:ra_dav:version-url
+V 83
+/svnroot/siriuspsb/!svn/ver/91/Sirius/src/sirius/trainer/features/KGramFeature.java
+END

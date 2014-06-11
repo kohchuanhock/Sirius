@@ -1,0 +1,23 @@
+K 25
+svn:wc:ra_dav:version-url
+V 80
+/svnroot/siriuspsb/!svn/ver/5/Sirius/src/sirius/trainer/features/subsetselection
+END
+GreedyForwardSubsetSearch.java
+K 25
+svn:wc:ra_dav:version-url
+V 112
+/svnroot/siriuspsb/!svn/ver/57/Sirius/src/sirius/trainer/features/subsetselection/GreedyForwardSubsetSearch.java
+END
+DPIPlusNMIFiltering.java
+K 25
+svn:wc:ra_dav:version-url
+V 106
+/svnroot/siriuspsb/!svn/ver/73/Sirius/src/sirius/trainer/features/subsetselection/DPIPlusNMIFiltering.java
+END
+SubsetSelection.java
+K 25
+svn:wc:ra_dav:version-url
+V 101
+/svnroot/siriuspsb/!svn/ver/5/Sirius/src/sirius/trainer/features/subsetselection/SubsetSelection.java
+END

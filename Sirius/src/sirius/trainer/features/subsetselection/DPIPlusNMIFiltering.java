@@ -1,0 +1,148 @@
+package sirius.trainer.features.subsetselection;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
+
+import sirius.predictor.main.SiriusClassifier;
+import sirius.trainer.features.Feature;
+import sirius.utils.ContinuousMI;
+import sirius.utils.FastaFormat;
+
+public class DPIPlusNMIFiltering {
+	public static List<Feature> efficientStyle(List<Feature> featureList, List<FastaFormat> fastaList, double[] classList, 
+			double epsilon, double maxNMI){
+		SiriusClassifier.obtainFeatureValue(featureList, fastaList);
+		SiriusClassifier.computeMI(featureList, classList);
+		Collections.sort(featureList, new SortByMutualInformation());
+		System.out.println("First MI: " + featureList.get(0).getMutualInformation());
+		System.out.println("Last MI: " + featureList.get(featureList.size() - 1).getMutualInformation());
+		List<Feature> firstFilterList = new ArrayList<Feature>();
+		for(Feature f:featureList){
+			if(f.getMutualInformation() > 0.0){
+				firstFilterList.add(f);
+			}
+		}
+		if(firstFilterList.size() == 0){
+			firstFilterList = featureList;
+		}
+		List<Feature> finalList = new ArrayList<Feature>();
+		finalList.addAll(firstFilterList);
+		/*
+		 * Filter using DPI
+		 */
+		epsilon += 1.0;
+		for(int i = 0; i < finalList.size(); i++){
+			double miic = finalList.get(i).getMutualInformation();
+			for(int j = i + 1; j < finalList.size();){
+				double miij = ContinuousMI.MIUsingCellucciMethod(finalList.get(i).getValueList(), 
+						finalList.get(j).getValueList(), true);
+				double mijc = finalList.get(j).getMutualInformation();
+				if((mijc * epsilon) < miij && (mijc * epsilon) < miic){
+					//i is between j and c - remove j
+					finalList.remove(j);
+				}else if((miic * epsilon) < miij && (miic * epsilon) < mijc){
+					//j is between i and c - remove i
+					throw new Error("This cannot happen - miic cannot be less than mijc since already sorted");
+				}else{
+					j++;
+				}
+			}
+		}
+		/*
+		 * Filter using NMI
+		 */
+		for(int x = 0; x < finalList.size(); x++){
+			for(int y = x + 1; y < finalList.size();){
+				double nmi = ContinuousMI.NormalizedMIUsingCellucciMethod(
+					finalList.get(x).getValueList(), finalList.get(y).getValueList(), true);
+				if(nmi > maxNMI){
+					finalList.remove(y);
+				}else{
+					y++;
+				}
+			}
+		}
+		return finalList;
+	}
+	
+	public static List<Feature> GAStyle(List<Feature> featureList, List<FastaFormat> fastaList, double[] classList, 
+			double epsilon, double maxNMI){
+		/*
+		 * 1) Sort the features by MI
+		 * 2) Filter using DPI and NMI		 
+		 * Returns the features that pass the two filters
+		 */		
+		SiriusClassifier.obtainFeatureValue(featureList, fastaList);
+		SiriusClassifier.computeMI(featureList, classList);
+		Collections.sort(featureList, new SortByMutualInformation());
+		System.out.println("First MI: " + featureList.get(0).getMutualInformation());
+		System.out.println("Last MI: " + featureList.get(featureList.size() - 1).getMutualInformation());
+		List<Feature> firstFilterList = new ArrayList<Feature>();
+		for(Feature f:featureList){
+			if(f.getMutualInformation() > 0.0){
+				firstFilterList.add(f);
+			}
+		}
+		if(firstFilterList.size() == 0){
+			firstFilterList = featureList;
+		}
+		List<Feature> finalList = new ArrayList<Feature>();
+		for(Feature f:firstFilterList){
+			if(addFeatureToEliteList(finalList, f, maxNMI, epsilon)){
+				finalList.add(f);
+			}
+		}
+		return finalList;
+	}	
+	
+	private static boolean addFeatureToEliteList(List<Feature> currentEliteList, Feature feature, double maxNMI, 
+			double epsilon){		
+		/*
+		 * Filter 1 - Based on DPI
+		 * Ensure that two features are not giving overlapping information about the class feature
+		 */
+		if(epsilon != -1){
+			epsilon += 1;
+			for(int i = 0; i < currentEliteList.size(); i++){
+				double miic = currentEliteList.get(i).getMutualInformation();						
+				double miij = ContinuousMI.MIUsingCellucciMethod(currentEliteList.get(i).getValueList(), 
+							feature.getValueList(), true);
+				double mijc = feature.getMutualInformation();
+				if((mijc * epsilon) < miij && (mijc * epsilon) < miic){
+					//i is between j and c - remove j
+					return false;
+				}else if((miic * epsilon) < miij && (miic * epsilon) < mijc){
+					//j is between i and c - remove i
+					throw new Error("This cannot happen - miic cannot be less than mijc since already sorted");
+				}
+			}
+		}		
+		/*
+		 * Filter 2 - Based on NMI
+		 * Ensure that two features are not too similar
+		 */
+		if(maxNMI != -1){
+			for(int x = 0; x < currentEliteList.size(); x++){			
+				double nmi = ContinuousMI.NormalizedMIUsingCellucciMethod(
+						currentEliteList.get(x).getValueList(), feature.getValueList(), true);
+				if(nmi > maxNMI) return false;
+			}
+		}
+		//Pass
+		return true;
+	}
+}
+
+class SortByMutualInformation implements Comparator<Feature>{
+	@Override
+	public int compare(Feature o1, Feature o2) {
+		if(o1.getMutualInformation() > o2.getMutualInformation())
+			return -1;
+		else if(o1.getMutualInformation() < o2.getMutualInformation())
+			return 1;	
+		else 
+			return 0;
+	}	
+}

@@ -1,0 +1,41 @@
+K 25
+svn:wc:ra_dav:version-url
+V 61
+/svnroot/siriuspsb/!svn/ver/9/Sirius/src/sirius/trainer/step4
+END
+RunClassifierWithNoLocationIndex.java
+K 25
+svn:wc:ra_dav:version-url
+V 100
+/svnroot/siriuspsb/!svn/ver/57/Sirius/src/sirius/trainer/step4/RunClassifierWithNoLocationIndex.java
+END
+GraphPane.java
+K 25
+svn:wc:ra_dav:version-url
+V 77
+/svnroot/siriuspsb/!svn/ver/25/Sirius/src/sirius/trainer/step4/GraphPane.java
+END
+ClassifierNameDialog.java
+K 25
+svn:wc:ra_dav:version-url
+V 87
+/svnroot/siriuspsb/!svn/ver/5/Sirius/src/sirius/trainer/step4/ClassifierNameDialog.java
+END
+ClassifierPane.java
+K 25
+svn:wc:ra_dav:version-url
+V 82
+/svnroot/siriuspsb/!svn/ver/69/Sirius/src/sirius/trainer/step4/ClassifierPane.java
+END
+RunClassifier.java
+K 25
+svn:wc:ra_dav:version-url
+V 81
+/svnroot/siriuspsb/!svn/ver/25/Sirius/src/sirius/trainer/step4/RunClassifier.java
+END
+DatasetGenerator.java
+K 25
+svn:wc:ra_dav:version-url
+V 84
+/svnroot/siriuspsb/!svn/ver/22/Sirius/src/sirius/trainer/step4/DatasetGenerator.java
+END

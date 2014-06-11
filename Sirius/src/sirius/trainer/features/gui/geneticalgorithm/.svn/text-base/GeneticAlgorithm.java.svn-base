@@ -1,0 +1,741 @@
+/*==========================================================================
+ 	  SiriusPSB - A Generic System for Analysis of Biological Sequences
+	        http://compbio.ddns.comp.nus.edu.sg/~sirius/index.php
+============================================================================
+	  Copyright (C) 2007 by Chuan Hock Koh
+
+	  This program is free software; you can redistribute it and/or
+	  modify it under the terms of the GNU General Public
+	  License as published by the Free Software Foundation; either
+	  version 3 of the License, or (at your option) any later version.
+
+	  This program is distributed in the hope that it will be useful,
+	  but WITHOUT ANY WARRANTY; without even the implied warranty of
+	  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+	  General Public License for more details.
+
+	  You should have received a copy of the GNU General Public License
+	  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+==========================================================================*/
+package sirius.trainer.features.gui.geneticalgorithm;
+
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.text.DecimalFormat;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Random;
+import java.util.Set;
+
+import org.jfree.data.xy.XYSeries;
+
+import commons.InformationTheory.ContinuousMI;
+import commons.sequence.FastaFormat;
+import commons.utils.Sampling;
+import commons.utils.Timer;
+import commons.utils.Utils;
+
+
+import sirius.main.ApplicationData;
+import sirius.trainer.features.AdvancedPhysiochemicalFeature;
+import sirius.trainer.features.Basic2PhysiochemicalFeature;
+import sirius.trainer.features.BasicPhysiochemicalFeature;
+import sirius.trainer.features.Feature;
+import sirius.trainer.features.GenerateArff;
+import sirius.trainer.features.KGramFeature;
+import sirius.trainer.features.MultipleKGramFeature;
+import sirius.trainer.features.PositionSpecificFeature;
+import sirius.trainer.features.RatioOfKGramFeature;
+import sirius.trainer.features.gui.basicphysiochemical.BasicPhysioTableModel;
+import sirius.trainer.main.ScoringMatrix;
+import sirius.trainer.main.StatusPane;
+import sirius.trainer.step2.FeatureTableModel;
+
+public class GeneticAlgorithm {
+	static final long serialVersionUID = sirius.Sirius.version;	
+	private StatusPane status;
+
+	public GeneticAlgorithm(GASettingsInterface settingsDialog, String outputLocationString, 
+			ApplicationData appData, GeneticAlgorithmDialog GA, FeatureTableModel featureTableModel, 
+			XYSeries dataPoints, RunGA runGA, StatusPane statusPane, List<FastaFormat> posFastaList, 
+			List<FastaFormat> negFastaList, int fold, int startRandomNumber) throws Exception{		
+		/*GASettingsInterface settingsDialog - this is to store all the information for the GA
+		 * String outputLocationString - this is to store where to output. Note: should not do multiple runs on same directory
+		 * ApplicationData appData - this is to store the input sequences (both positive and background)
+		 * GeneticAlgorithmDialog GA - this is used particularly for Step 2 GA. can be NULL - NULL means running Sirius from Console
+		 * FeatureTableModel featureTableModel - this is needed for user to set the starting features to search from. Can be NULL
+		 * XYSeries dataPoints - just for graphical display for Step2 GA. can be NULL
+		 * 
+		 */
+		if(dataPoints != null){
+			//Reset the data point for new run
+			dataPoints.clear();
+		}
+		if((fold == -1 && GA != null)|| (fold == 1 && GA != null)){
+			//Clean the directory
+			if(Utils.cleanDirectory(new File(outputLocationString), false))
+				System.out.println("Clear Directory successful");
+			else
+				System.out.println("Clear Directory failed");
+		}		
+		if(posFastaList == null && negFastaList == null){			
+			posFastaList = new ArrayList<FastaFormat>();
+			negFastaList = new ArrayList<FastaFormat>();
+			ApplicationData.obtainDataset1FastaSequences(appData, posFastaList, negFastaList);
+		}
+		/*
+		 * Obtain the settings
+		 */
+		//Have a first run to get some basic information about the input sequences		
+		GeneticAlgorithmInputData inputDataStats = new GeneticAlgorithmInputData(appData);
+		final int windowMin = inputDataStats.getWindowMin();
+		final int windowMax = inputDataStats.getWindowMax();
+		//Obtain information about user settings 
+		final boolean undersample = settingsDialog.getUndersample();		
+		final int resamplingFold = settingsDialog.getSamplingRatio();				
+		final int populationSize = settingsDialog.getPopulationSize();
+		final int randomNumber = settingsDialog.getRandomNumber();
+		final Random rand = new Random(randomNumber);		
+		final int countingIndex = settingsDialog.getSelectedCountingIndex();
+		final int outputInterval = settingsDialog.getOutputInterval();
+		final int selectionPercentage = settingsDialog.getSelectionPercentage();
+		final int selectionSize = (int) (selectionPercentage * populationSize / 100.0);
+		final int crossoverPercentage = settingsDialog.getCrossoverPercentage();
+		final int crossoverSize = (int) (crossoverPercentage * populationSize / 100.0);		
+		final double maxNMI = settingsDialog.getMaxNMI();
+		final double maxNCMI = settingsDialog.getMaxCNMI();
+		final int maxEliteFeatureSize = settingsDialog.getMaxEliteSize();
+		final int terminationGeneration = settingsDialog.getTerminationGeneration();
+		final double dpiEpsilon = settingsDialog.getDPIEpsilon();
+		final int generationY = settingsDialog.getGenerationY();
+		final int subsetSelection = settingsDialog.getSubsetSelection();
+		final int scoringIndex = settingsDialog.getSelectedScoringIndex();
+		appData.setScoringMatrixIndex(scoringIndex);
+		final ScoringMatrix scoringMatrix = appData.getScoringMatrix();
+		appData.setCountingStyleIndex(countingIndex);
+		List<Feature> populationFeatures = null;
+		if(featureTableModel != null){			
+			populationFeatures = featureTableModel.getData();
+		}else{
+			populationFeatures = new ArrayList<Feature>();
+		}
+		List<Feature> eliteFeatures = new ArrayList<Feature>();
+		//give each feature type a letter to represent it - Uniform Distribution
+		String featureLetters = "";		
+		if(settingsDialog.isKgramSelected())
+			//K is for Kgram
+			featureLetters += "KK";
+		if(settingsDialog.isMultipleKgramSelected())
+			//M is for multiple
+			featureLetters += "MM";
+		if(settingsDialog.isRatioOfKgramSelected())
+			//R is for ratio
+			featureLetters += "RR";
+		if(settingsDialog.isPositionSpecificSelected())
+			//P is for position
+			featureLetters += "PP";
+		if(settingsDialog.isPhysiochemicalSelected()){
+			//B is for basic and basic2 features
+			featureLetters += "BA";
+			//once physiochemical is selected, 
+			//add 15 basic physiochemical features in since it only that much
+			this.addBasicPhysiochemicalFeatures(populationFeatures);
+		}			
+		/*
+		 * Prepare Status Pane
+		 */
+		this.status = appData.getStatusPane();
+		if(statusPane != null) this.status = statusPane;
+		//create a dummy statusPane
+		if(this.status == null) this.status = new StatusPane("");
+		this.status.setText("Initialising..");
+		
+		outputSettings(outputLocationString, scoringIndex, countingIndex, randomNumber, populationSize, selectionPercentage, 
+				crossoverPercentage, outputInterval, maxNMI, maxNCMI, terminationGeneration, maxEliteFeatureSize, featureLetters, 
+				dpiEpsilon, subsetSelection, undersample, resamplingFold, posFastaList.size(), negFastaList.size());
+
+		int generationCount = 0;		
+		DecimalFormat df = new DecimalFormat("0.0000");		
+		BufferedWriter maxScoreOutput = new BufferedWriter(new FileWriter(outputLocationString + File.separator + "MaxScore.txt"));
+		List<Feature> globalMaxScoreFeatureList = null;
+		double maxEliteTotalScore = Double.NEGATIVE_INFINITY;
+		int unchangedGenerationCount = 0;
+		double eliteTotalScore = 0.0;		
+		Set<Integer> selectedPosIndexSet = new HashSet<Integer>();
+		Set<Integer> selectedNegIndexSet = new HashSet<Integer>();
+		for(int i = 0; i < posFastaList.size(); i++) selectedPosIndexSet.add(i);
+		for(int i = 0; i < negFastaList.size(); i++) selectedNegIndexSet.add(i);		
+		if(subsetSelection < 100){//Do subset selection
+			selectedPosIndexSet = Sampling.selectSubsetRandomly(rand, posFastaList.size(),
+					(int)(subsetSelection / 100.0 * posFastaList.size()));
+			selectedNegIndexSet = Sampling.selectSubsetRandomly(rand, negFastaList.size(),
+					(int)(subsetSelection / 100.0 * negFastaList.size()));
+		}		
+		if(undersample){				
+			if(selectedPosIndexSet.size() > selectedNegIndexSet.size()){
+				selectedPosIndexSet = Sampling.selectUndersampleRandomly(rand, selectedPosIndexSet, 
+						selectedNegIndexSet.size(), resamplingFold);
+			}else if(selectedPosIndexSet.size() < selectedNegIndexSet.size()){
+				selectedNegIndexSet = Sampling.selectUndersampleRandomly(rand, selectedNegIndexSet, 
+						selectedPosIndexSet.size(), resamplingFold);
+			}				
+		}
+		/* 
+		 * Main execution of Genetic Algorithm
+		 * Note that apart from the termination generation. There are also 2 other ways to stop GA
+		 * 1) topX features did not change for generationY - (topX > 0 && generationY > 0)
+		 * 2) Max CFS did not change for generationY - (topX < 0 && generationY > 0)
+		 */
+		while((runGA == null || runGA.getValue()) && //Stop by User 
+				terminationGeneration != generationCount && //Termination Generation Reached
+				(generationY <= 0 || unchangedGenerationCount < generationY)){//Unchanged for specified generation
+			generationCount++;
+			if(generationCount == terminationGeneration) this.status.setSuffix(" - Will terminate @ the end of this Generation!");
+			this.status.setPrefix("Generation " + generationCount + ": ");
+			/*
+			 * Changing Population if subsetSelection < 100
+			 */			
+			if(subsetSelection < 100){//Do subset selection
+				selectedPosIndexSet = new HashSet<Integer>();
+				selectedNegIndexSet = new HashSet<Integer>();
+				for(int i = 0; i < posFastaList.size(); i++) selectedPosIndexSet.add(i);
+				for(int i = 0; i < negFastaList.size(); i++) selectedNegIndexSet.add(i);
+				selectedPosIndexSet = Sampling.selectSubsetRandomly(rand, posFastaList.size(),
+						(int)(subsetSelection / 100.0 * posFastaList.size()));
+				selectedNegIndexSet = Sampling.selectSubsetRandomly(rand, negFastaList.size(),
+						(int)(subsetSelection / 100.0 * negFastaList.size()));
+				/*
+				 * Execute undersampling if needed
+				 */			
+				if(undersample){				
+					if(selectedPosIndexSet.size() > selectedNegIndexSet.size()){
+						selectedPosIndexSet = Sampling.selectUndersampleRandomly(rand, selectedPosIndexSet, 
+								selectedNegIndexSet.size(), resamplingFold);
+					}else if(selectedPosIndexSet.size() < selectedNegIndexSet.size()){
+						selectedNegIndexSet = Sampling.selectUndersampleRandomly(rand, selectedNegIndexSet, 
+								selectedPosIndexSet.size(), resamplingFold);
+					}				
+				}				
+				/*
+				 * If the subsetselection is < 100
+				 * implies that the elite feature score will change every generation
+				 * Thus, recompute the score for elite features			 
+				 */
+				this.setFeatureIndividualFitnessScore(eliteFeatures, posFastaList, negFastaList,
+						selectedPosIndexSet, selectedNegIndexSet, scoringIndex, countingIndex, scoringMatrix, this.status, true);
+			}					
+			/*
+			 * Randomly generate features till they reach user specified
+			 */
+			this.status.setText("Generating Features Randomly..");
+			this.generateFeaturesRandomly(populationSize, rand, populationFeatures, featureLetters, windowMin, windowMax,appData);
+			/*
+			 * Compute the fitness score of each features in the population
+			 */
+			double[] classValueList = this.setFeatureIndividualFitnessScore(populationFeatures, posFastaList, negFastaList,
+					selectedPosIndexSet, selectedNegIndexSet, scoringIndex, countingIndex, scoringMatrix, this.status, false);
+			/*
+			 * Compute the new Elite Features
+			 */
+			eliteFeatures = this.greedySearch(populationFeatures, eliteFeatures, maxEliteFeatureSize, maxNMI, this.status, 
+					dpiEpsilon, eliteTotalScore, classValueList, maxNCMI);
+			/*
+			 * Compute EliteScore
+			 */
+			eliteTotalScore = 0.0;			
+			for(int i = 0; i < eliteFeatures.size(); i++) 
+				eliteTotalScore += eliteFeatures.get(i).getFitnessScore();
+			/*
+			 * Output EliteScore
+			 */
+			try {
+				if(maxScoreOutput != null){
+					maxScoreOutput.write("Generation " + generationCount + ": " + eliteTotalScore);
+					maxScoreOutput.newLine();
+					maxScoreOutput.flush();				
+				}
+			} catch (IOException e) {			
+				e.printStackTrace();
+			}
+			/*
+			 * Check if the totalEliteScore is surpassed
+			 */
+			if(eliteTotalScore > maxEliteTotalScore){				
+				maxEliteTotalScore = eliteTotalScore;
+				globalMaxScoreFeatureList = new ArrayList<Feature>();
+				for(Feature f:eliteFeatures)
+					globalMaxScoreFeatureList.add(f);
+				if(generationY > 0){
+					unchangedGenerationCount = 0;
+				}
+			}else if(generationY > 0){
+				unchangedGenerationCount++;
+			}
+			if(generationY > 0 && unchangedGenerationCount > 0){
+				this.status.setSuffix(" - (MaxScore unchanged for " + unchangedGenerationCount + " generation)");
+				if(unchangedGenerationCount >= generationY)
+					this.status.setSuffix(" - Will terminate @ the end of this Generation (MaxScore unchanged for " + 
+							unchangedGenerationCount + " generation)!");
+			}else if(generationY > 0 && unchangedGenerationCount == 0){
+				this.status.setSuffix("");
+			}
+			if(featureTableModel != null) featureTableModel.setData(eliteFeatures);
+			if(GA != null && GA instanceof GeneticAlgorithmDialog){
+				GA.updateFeature(eliteFeatures.size() + "");
+				GA.updateCFS(df.format(eliteTotalScore));
+			}
+			//Update graph
+			if(dataPoints != null) dataPoints.add(generationCount, eliteTotalScore);
+			//Output Features @ user specified interval
+			if(generationCount % outputInterval == 0) 
+				writeEliteFeaturesToFile(generationCount,outputLocationString,eliteFeatures,df.format(eliteTotalScore));
+			/*
+			 * Selection% + Crossover% <= 100%, the rest will be replenish with new randomly generated features
+			 * Selection with Mutation - select features from these features with a prob proportionate to their score
+			 * Crossover - features with higher score has higher chance. I should only get from before mutation 
+			 */
+			List<Feature> newGeneration = new ArrayList<Feature>();
+			this.status.setText("Selection with Mutation..");			
+			this.selection(eliteFeatures,selectionSize,newGeneration,rand,windowMin, windowMax);
+			this.status.setText("Crossover..");
+			this.crossover(newGeneration, eliteFeatures, rand, crossoverSize);
+			populationFeatures = newGeneration;			
+		}
+		
+		this.status.setPrefix(null);	
+		this.status.setSuffix(null);
+		this.status.setText("Stopped.");
+		//output last generation
+		writeEliteFeaturesToFile(generationCount,outputLocationString,eliteFeatures,df.format(eliteTotalScore));
+
+		System.out.println("WindowMin: " + windowMin);
+		System.out.println("WindowMax: " + windowMax);
+		System.out.println("Scoring Index: " + scoringIndex);
+		System.out.println("Counting Index: " + countingIndex);
+		System.out.println("Random Number: " + randomNumber);
+		System.out.println("Population Size: " + populationSize);
+		System.out.println("Selection %: " + selectionPercentage);
+		System.out.println("Mutation %: " + crossoverPercentage);
+		System.out.println("Output Interval: " + outputInterval);
+		System.out.println("Max NMI: " + maxNMI);
+		System.out.println("Max NCMI: " + maxNCMI);
+		System.out.println("Termination Generation: " + terminationGeneration);
+		System.out.println("Output Feature Size: " + maxEliteFeatureSize);
+		System.out.println("Feature Letters: " + featureLetters);
+		try{
+			maxScoreOutput.close();
+			//Generate a feature file that has the best CFS score 
+			BufferedWriter maxScoreFeatureOutput = new BufferedWriter(new FileWriter(outputLocationString + File.separator + 
+			"maxScoreFeature.features"));			
+			BufferedWriter currentFoldMaxScoreFeatureOutput = null;
+			if(fold != -1)
+				currentFoldMaxScoreFeatureOutput = new BufferedWriter(new FileWriter(outputLocationString + File.separator + 
+						"maxScoreFeature_" + startRandomNumber + "_" + fold + "_" + maxEliteTotalScore + ".features"));
+			for(int x = 0; x < globalMaxScoreFeatureList.size(); x++){
+				maxScoreFeatureOutput.write("Step 2: " + globalMaxScoreFeatureList.get(x).saveString(null));
+				maxScoreFeatureOutput.newLine();
+				if(fold != -1){
+					currentFoldMaxScoreFeatureOutput.write("Step 2: " + globalMaxScoreFeatureList.get(x).saveString(null));
+					currentFoldMaxScoreFeatureOutput.newLine();
+				}
+			}
+			maxScoreFeatureOutput.close();
+			if(fold != -1)
+				currentFoldMaxScoreFeatureOutput.close();
+		}catch(Exception e){e.printStackTrace();}
+	}
+
+	public GeneticAlgorithm(GASettingsInterface settingsDialog, String outputLocationString, 
+			ApplicationData appData,
+			GeneticAlgorithmDialog GA, FeatureTableModel featureTableModel, XYSeries dataPoints, 
+			RunGA runGA,
+			int fold, int startRandomNumber) throws Exception{		
+		this(settingsDialog,outputLocationString,appData,GA,featureTableModel,dataPoints,runGA,
+				null, null, null, fold, startRandomNumber);
+	}
+
+	public GeneticAlgorithm(GASettingsInterface settingsDialog, String outputLocationString, 
+			ApplicationData appData, GeneticAlgorithmDialog GA, FeatureTableModel featureTableModel, 
+			XYSeries dataPoints, RunGA runGA, List<FastaFormat> posList, List<FastaFormat> negList, 
+			int fold, int startRandomNumber) throws Exception{
+		this(settingsDialog,outputLocationString,appData,GA,featureTableModel,dataPoints,runGA,null, 
+				posList, negList, fold, startRandomNumber);
+	}		
+
+	private void outputSettings(String outputLocationString, int scoringIndex, int countingIndex, int randomNumber, int populationSize, 
+			int selectionPercentage, int crossoverPercentage, int outputInterval, double maxNMI, double maxNCMI, int terminationGeneration,
+			int maxEliteFeatureSize, String featureLetters, double dpiEpsilon, int subsetSelection,
+			boolean undersample, int resamplingFold, int posFastaSize, int negFastaSize) throws Exception{
+		//Output the settings so that repeating experiments would be easier			
+		BufferedWriter output = new BufferedWriter(new FileWriter(outputLocationString + File.separator + "Settings.txt"));
+		output.write("Scoring Index: " + scoringIndex);
+		output.newLine();
+		output.write("Counting Index: " + countingIndex);
+		output.newLine();
+		output.write("Random Number: " + randomNumber);
+		output.newLine();
+		output.write("Population Size: " + populationSize);
+		output.newLine();
+		output.write("Selection %: " + selectionPercentage);
+		output.newLine();
+		output.write("Crossover %: " + crossoverPercentage);
+		output.newLine();
+		output.write("Output Interval: " + outputInterval);
+		output.newLine();
+		output.write("Max NMI: " + maxNMI);
+		output.newLine();
+		output.write("Max NCMI: " + maxNCMI);
+		output.newLine();
+		output.write("Termination Generation: " + terminationGeneration);
+		output.newLine();
+		output.write("Output Feature Size: " + maxEliteFeatureSize);
+		output.newLine();
+		output.write("Feature Letters: " + featureLetters);
+		output.newLine();			
+		output.write("DPI Epsilon: " + dpiEpsilon);
+		output.newLine();
+		output.write("Subset Selection: " + subsetSelection);
+		output.newLine();
+		if(undersample) output.write("Undersample: " + 1.0);
+		else output.write("Undersample: " + 0.0);
+		output.newLine();
+		output.write("ResamplingFold: " + resamplingFold);
+		output.newLine();
+		output.write("PosDataSize: " + posFastaSize);
+		output.newLine();
+		output.write("NegDataSize: " + negFastaSize);
+		output.close();			
+	}
+
+	private void crossover(List<Feature> newGeneration, List<Feature> eliteFeatures, Random rand, 
+			int crossoverSize){
+		if(eliteFeatures.size() <= 1)
+			return;
+		List<Feature> crossoverGeneration = new ArrayList<Feature>();		
+		for(int x = 0; x < crossoverSize/2; x++){
+			//randomly select 2 feature from elite and do crossover
+			int crossoverA = rand.nextInt(eliteFeatures.size());
+			int crossoverB;
+			//ensure that the two selected features are different
+			do
+				crossoverB = rand.nextInt(eliteFeatures.size());
+			while(crossoverB == crossoverA);
+			//note that 2 new features will be added to crossoverGeneration			
+			Feature.crossoverMain(newGeneration, eliteFeatures.get(crossoverA), eliteFeatures.get(crossoverB), 
+					rand);
+		}		
+		for(int x = 0; x < crossoverGeneration.size(); x++)
+			newGeneration.add(crossoverGeneration.get(x));		
+	}
+
+	private void addBasicPhysiochemicalFeatures(List<Feature> populationFeatures){		
+		for(int x = 0; x < BasicPhysioTableModel.BasicPhysiochemicalType.values().length; x++){
+			String featureName = "B";
+			featureName += "_" + BasicPhysioTableModel.BasicPhysiochemicalType.values()[x];
+			populationFeatures.add(new BasicPhysiochemicalFeature(featureName));
+		}		
+	}	
+
+	private void selection(List<Feature> eliteFeatures, int selectionSize, List<Feature> newGeneration, 
+			Random rand, int windowMin, int windowMax){
+		//Selection with replacement
+		//But ensure that one feature only has chance of being selected at most 10 times		
+		try{
+			if(eliteFeatures.size() == 0)
+				return;
+			//Build the cumulative distribution based on the score of each individual feature
+			//Generate a double from 0.0 to 1.0 uniformly distributed			
+			double populationTotalScore = 0.0;
+			for(int x = 0; x < eliteFeatures.size(); x++)
+				populationTotalScore += eliteFeatures.get(x).getScore();		
+			List<Double> cumulativeDistributionList = new ArrayList<Double>();
+			double currentScore = 0.0;
+			for(int x = 0; x < eliteFeatures.size(); x++){
+				currentScore += eliteFeatures.get(x).getScore();
+				cumulativeDistributionList.add(currentScore/populationTotalScore);
+			}
+
+			/*
+			 * given a random number, use binary search to find the index that correspond to the 
+			 * random number
+			 * Note: also ensure that each feature have only the chance of being selected at most 10 times
+			 * This is when elitefeatures are small
+			 */
+			for(int x = 0; x < selectionSize && x < (eliteFeatures.size() * 10); x++){
+				double randDouble = rand.nextDouble();
+				int start = 0;
+				int end = cumulativeDistributionList.size();
+				int middle;
+				while(start < end){
+					middle = (start + end) / 2;
+					if(randDouble > cumulativeDistributionList.get(middle))
+						start = middle + 1;
+					else
+						end = middle;    			
+				}		    	
+				//System.out.println(eliteFeatures.get(start));
+				newGeneration.add(eliteFeatures.get(start).mutate(rand, windowMin, windowMax));
+				//System.out.println("--");
+			}			
+		}catch(Exception e){e.printStackTrace();}
+	}	
+
+	private void writeEliteFeaturesToFile(int generationCount, String outputLocationString, 
+			List<Feature> outputFeatures,String cfsScore){
+		try{
+			//Output the eliteFeatures
+			String filename = outputLocationString + File.separator + "Generation_"+ generationCount + 
+			"_Score_" + cfsScore + ".features";
+			BufferedWriter output = new BufferedWriter(new FileWriter(filename));
+			for(int x = 0; x < outputFeatures.size(); x++){
+				output.write("Step 2: " + outputFeatures.get(x).saveString(null));
+				output.newLine();
+			}
+			output.close();
+		}catch(Exception e){e.printStackTrace();}
+	}
+
+	private List<Feature> greedySearch(
+			List<Feature> populationFeatures, 
+			List<Feature> eliteFeatures, int eliteMaxSize, double maxNMI, 
+			StatusPane status, double epsilon, 
+			double previousEliteTotalScore, double[] classFeatureList,
+			double maxNCMI){
+		/*
+		 * Find the min score in the elite feature set
+		 */
+		double minScore = 0.0;
+		if(eliteFeatures.size() >= eliteMaxSize){
+			//By doing this, I used a first filtering criteria			
+			minScore = Double.POSITIVE_INFINITY;
+			for(Feature f:eliteFeatures)
+				if(f.getFitnessScore() < minScore) minScore = f.getFitnessScore();
+		}
+		/*
+		 * Select features that pass the min score
+		 */
+		List<Feature> selectedFeatures = new ArrayList<Feature>();
+		for(int x = 0; x < populationFeatures.size(); x++){
+			if(populationFeatures.get(x).getScore() > minScore){
+				selectedFeatures.add(populationFeatures.get(x));
+			}
+		}
+		selectedFeatures.addAll(eliteFeatures);
+		System.out.println("Features that passed first filtering: " + selectedFeatures.size());
+
+		/*
+		 * Greedy search
+		 */		
+		List<Feature> newEliteFeatures;
+		double currentEliteTotalScore = 0.0; 
+		Collections.sort(selectedFeatures, new SortByFitnessScore());		
+		//First run
+		newEliteFeatures = new ArrayList<Feature>();
+		for(Feature f:selectedFeatures){
+			if(newEliteFeatures.size() >= eliteMaxSize) break;
+			if(addFeatureToEliteList(newEliteFeatures, f, maxNMI, epsilon, classFeatureList, maxNCMI)){
+				newEliteFeatures.add(f);
+				currentEliteTotalScore += f.getFitnessScore();
+			}
+		}
+		//continue running if needed
+		//I believe there is no need to continue all the way
+		int limit = (int)(newEliteFeatures.size() * 0.5);
+		for(int i = 0; i < limit && currentEliteTotalScore < previousEliteTotalScore; i++){
+			int attemptToAdd = 0;//index to skip
+			newEliteFeatures = new ArrayList<Feature>();
+			currentEliteTotalScore = 0.0;
+			for(int x = 0; x < selectedFeatures.size(); x++){
+				if(newEliteFeatures.size() >= eliteMaxSize) break;
+				if(addFeatureToEliteList(newEliteFeatures, selectedFeatures.get(x), maxNMI, 
+						epsilon, classFeatureList, maxNCMI)){
+					if(attemptToAdd != i){//prevent different features from being added at different runs
+						newEliteFeatures.add(selectedFeatures.get(x));
+						currentEliteTotalScore += selectedFeatures.get(x).getFitnessScore();
+					}
+					attemptToAdd++;
+				}
+			}			
+		}
+		if(currentEliteTotalScore >= previousEliteTotalScore)
+			return newEliteFeatures;
+		else
+			return eliteFeatures;
+	}
+
+	private boolean addFeatureToEliteList(List<Feature> currentEliteList, Feature feature, double maxNMI, 
+			double epsilon, double[] classFeatureList, double maxNCMI){
+		/*
+		 * Should feature be added to elite list?
+		 */
+
+		/*
+		 * Filter 1 - Based on DPI
+		 * Ensure that two features are not giving overlapping information about the class feature
+		 */
+		if(epsilon != -1){
+			epsilon += 1;
+			for(int i = 0; i < currentEliteList.size(); i++){
+				double miic = currentEliteList.get(i).getFitnessScore();						
+				double miij = ContinuousMI.MIUsingCellucciMethod(currentEliteList.get(i).getValueList(), 
+						feature.getValueList(), true);
+				double mijc = feature.getFitnessScore();
+				if((mijc * epsilon) < miij && (mijc * epsilon) < miic){
+					//i is between j and c - remove j
+					return false;
+				}else if((miic * epsilon) < miij && (miic * epsilon) < mijc){
+					//j is between i and c - remove i
+					throw new Error("This cannot happen - miic cannot be less than mijc since already sorted");
+				}
+			}
+		}
+
+		/*
+		 * Filter 2 - Based on NMI
+		 * Ensure that two features are not too similar
+		 */
+		if(maxNMI != -1){
+			for(int x = 0; x < currentEliteList.size(); x++){			
+				double nmi = ContinuousMI.NormalizedMIUsingCellucciMethod(
+						currentEliteList.get(x).getValueList(), feature.getValueList(), true);
+				if(nmi > maxNMI) return false;
+			}
+		}
+
+		/*
+		 * Filter 3 - Based on Normalized Conditional Mutual Information
+		 */		
+		if(maxNCMI != -1){
+			for(int x = 0; x < currentEliteList.size(); x++){
+				double mi = ContinuousMI.NormalizedConditionalMIUsingCellucciMethod(
+						currentEliteList.get(x).getValueList(), feature.getValueList(), classFeatureList, true);
+				if(mi > maxNCMI) return false;
+			}
+		}
+		//Pass
+		return true;
+	}
+
+	private double[] combineWithOversampleEvenly(double[] posD, double[] negD){		
+		if(posD.length > negD.length * 2){
+			int foldDiff = posD.length / negD.length;
+			double[] totalD = new double[posD.length + (negD.length * foldDiff)];
+			int i = 0;
+			for(double d:posD) totalD[i++] = d;
+			for(int x = 0; x < foldDiff; x++)
+				for(double d:negD)
+					totalD[i++] = d;
+			return totalD;
+		}else if(negD.length > posD.length * 2){
+			int foldDiff = negD.length / posD.length;
+			double[] totalD = new double[(posD.length * foldDiff) + negD.length];
+			int i = 0;
+			for(int x = 0; x < foldDiff; x++)
+				for(double d:posD)
+					totalD[i++] = d;
+			for(double d:negD) totalD[i++] = d;
+			return totalD;
+		}else{//roughly equals
+			double[] totalD = new double[posD.length + negD.length];
+			int i = 0;
+			for(double d:posD) totalD[i++] = d;
+			for(double d:negD) totalD[i++] = d;
+			return totalD;
+		}
+	}
+	
+	private double[] setFeatureIndividualFitnessScore(List<Feature> featureList, List<FastaFormat> posFastaList, 
+			List<FastaFormat> negFastaList, Set<Integer> selectedPosIndexSet, Set<Integer> selectedNegIndexSet, int scoringIndex, 
+			int countingIndex, ScoringMatrix scoringMatrix, StatusPane status, boolean isEliteFeatures) throws Exception{
+		/*
+		 * Compute the fitness score of each features in the population		 
+		 */	
+		System.out.println("SelectedPosIndexSet: " + selectedPosIndexSet.size());
+		System.out.println("SelectedNegIndexSet: " + selectedNegIndexSet.size());
+		Timer t = new Timer();
+		for(int i = 0; i < featureList.size(); i++){			
+			status.setText("Computing features MI - " + (i + 1) + " / " + featureList.size());
+			double posD[] = new double[selectedPosIndexSet.size()];
+			int index = 0;
+			for(int j = 0; j < posFastaList.size(); j++){
+				if(selectedPosIndexSet.contains(j) == false) continue;				
+				Object obj = GenerateArff.getMatchCount(posFastaList.get(j), featureList.get(i),scoringIndex,countingIndex,scoringMatrix);
+				if(obj.getClass().getName().equalsIgnoreCase("java.lang.Double")) 
+					posD[index++] = (Double)obj;
+				else//Assume Integer - else exception will be thrown
+					posD[index++] = (Integer)obj;				
+			}		
+			index = 0;
+			double negD[] = new double[selectedNegIndexSet.size()];
+			for(int j = 0; j < negFastaList.size(); j++){
+				if(selectedNegIndexSet.contains(j) == false) continue;				
+				Object obj = GenerateArff.getMatchCount(negFastaList.get(j),
+						featureList.get(i),scoringIndex,countingIndex,scoringMatrix);
+				if(obj.getClass().getName().equalsIgnoreCase("java.lang.Double"))
+					negD[index++] = (Double)obj;
+				else//Assume Integer - if not, exception will be thrown
+					negD[index++] = (Integer)obj;				
+			}
+			featureList.get(i).setValueList(combineWithOversampleEvenly(posD, negD));
+		}
+		double[] posClassValueList = new double[selectedPosIndexSet.size()];
+		for(int j = 0; j < selectedPosIndexSet.size(); j++) posClassValueList[j] = 0.0;
+		double[] negClassValueList = new double[selectedNegIndexSet.size()];
+		for(int j = 0; j < selectedNegIndexSet.size(); j++) negClassValueList[j] = 1.0;		
+		System.out.println("posD = " + posClassValueList.length + " negD = " + negClassValueList.length);
+		double[] classValueList = this.combineWithOversampleEvenly(posClassValueList, negClassValueList);
+		System.out.println("combinedD = " + classValueList.length);
+		t.showTimeSinceInit("Generating Values");
+		t.resetTime();
+		for(int i = 0; i < featureList.size(); i++){
+			featureList.get(i).setFitnessScore(ContinuousMI.MIUsingCellucciMethod(featureList.get(i).getValueList(), classValueList, true));
+		}
+		t.showTimeSinceInit("Computing MI");
+		return classValueList;
+	}	
+
+	private void generateFeaturesRandomly(final int populationSize, final Random rand, List<Feature> populationFeatures, 
+			String featureLetters, int windowFrom, int windowTo, ApplicationData appData){
+		/*
+		 * Randomly generate features
+		 */
+		while(populationSize > populationFeatures.size()){
+			int index = rand.nextInt(featureLetters.length());
+			char c = featureLetters.charAt(index);
+			switch(c){
+			case 'K': populationFeatures.add(KGramFeature.randomlyGenerate(windowFrom, windowTo, rand)); break;
+			case 'M': populationFeatures.add(MultipleKGramFeature.randomlyGenerate(windowFrom, windowTo,rand)); break;
+			case 'R': populationFeatures.add(RatioOfKGramFeature.randomlyGenerate(windowFrom, windowTo,rand)); break;
+			case 'P': populationFeatures.add(PositionSpecificFeature.randomlyGenerate(windowFrom, windowTo,rand,appData)); break;			
+			case 'A': 
+			case 'B': 	int num = rand.nextInt(11);
+			//Having the 6:2:2 split for now because Advanced & Basic2 runs very slowly
+			if(num < 6)//60% of the time generate Basic
+				populationFeatures.add(BasicPhysiochemicalFeature.randomlyGenerate(windowFrom, windowTo,rand));
+			else if(num < 8)//20% of the time generate Basic2
+				populationFeatures.add(Basic2PhysiochemicalFeature.randomlyGenerate(windowFrom, windowTo,rand));
+			else//20% of the time generate advanced
+				populationFeatures.add(AdvancedPhysiochemicalFeature.randomlyGenerate(windowFrom, windowTo,rand));
+			break;
+			default: throw new Error("Unhandled case: " + c);
+			}
+		}
+	}
+}
+
+class SortByFitnessScore implements Comparator<Feature>{
+	@Override
+	public int compare(Feature o1, Feature o2) {
+		if(o1.getFitnessScore() > o2.getFitnessScore())
+			return -1;
+		else if(o1.getFitnessScore() < o2.getFitnessScore())
+			return 1;	
+		else 
+			return 0;
+	}	
+}

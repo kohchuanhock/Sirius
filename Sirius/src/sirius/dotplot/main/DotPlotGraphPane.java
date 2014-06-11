@@ -1,0 +1,620 @@
+/*==========================================================================
+	  SiriusPSB - A Generic System for Analysis of Biological Sequences
+	        http://compbio.ddns.comp.nus.edu.sg/~sirius/index.php
+============================================================================
+	  Copyright (C) 2007 by Chuan Hock Koh
+	
+	  This program is free software; you can redistribute it and/or
+	  modify it under the terms of the GNU General Public
+	  License as published by the Free Software Foundation; either
+	  version 3 of the License, or (at your option) any later version.
+	
+	  This program is distributed in the hope that it will be useful,
+	  but WITHOUT ANY WARRANTY; without even the implied warranty of
+	  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+	  General Public License for more details.
+	  	
+	  You should have received a copy of the GNU General Public License
+	  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+==========================================================================*/
+package sirius.dotplot.main;
+
+import java.awt.*;
+import java.awt.geom.*;
+import javax.swing.*;
+
+import java.io.*;
+import java.util.*;
+//import java.awt.event.*;
+
+public class DotPlotGraphPane extends JPanel{
+	static final long serialVersionUID = sirius.Sirius.version;
+	JButton testButton;
+	private Dimension parentDimension;	
+	
+	//starting point of the screen
+	private int topLeftX = 30;
+	private int topLeftY = 30;
+	
+	private double yAxisLength;//to store the full length of yAxis
+	private double xAxisLength;//to store the full length of xAxis
+	
+	private String sequence1Name;
+	private String sequence2Name;	
+	
+	private int sequence1Start;
+	private int sequence1End;
+	
+	private int sequence2Start;
+	private int sequence2End;
+	
+	private Point start;
+	private Point current;
+	private Point end;
+	
+	private Point startPoint;
+	private Point endPoint;
+		
+	private Hashtable<Point, DotData> dots;
+	
+	private JFrame parent;
+		
+	private int forwardMax;
+	private int reverseMax;
+	
+	private int intensity;
+	
+	private int sequence1Length;
+	private int sequence2Length;
+	
+	public DotPlotGraphPane(JFrame parent){
+		this.parent = parent;
+		this.sequence1Name = null;
+		this.sequence2Name = null;
+		this.start = null;
+		this.current = null;
+		this.end = null;	
+		this.dots = new Hashtable<Point,DotData>();
+	}			
+	
+	public int getForwardMax(){
+		return this.forwardMax;
+	}
+	
+	public int getReverseMax(){
+		return this.reverseMax;
+	}
+	
+	public void clearDots(){
+		this.dots.clear();		
+		this.repaint();
+	}
+	
+	public void updateIntensity(int intensity){
+		this.intensity = intensity;
+		this.repaint();
+	}
+	
+	public void updateDots(){
+		try{			
+			this.dots.clear();			
+			forwardMax = 0;
+			reverseMax = 0;
+			BufferedReader input = new BufferedReader(new FileReader("dots.txt"));
+			String line;
+			while((line = input.readLine()) != null ){				
+				StringTokenizer st = new StringTokenizer(line);				
+				if(st.countTokens() != 4)
+					continue;
+				int x = Integer.parseInt(st.nextToken()) + this.topLeftX;
+				int y = Integer.parseInt(st.nextToken()) + this.topLeftY;
+				int intensity = (int)Float.parseFloat(st.nextToken());
+				char direction = st.nextToken().charAt(0);
+				Point p = new Point(x,y);
+				if(this.dots.containsKey(p)){
+					DotData temp = this.dots.get(p);
+					if(direction == 'F'){			
+						int tempInt = temp.addToForward(intensity);
+						if(tempInt > forwardMax)
+							forwardMax = tempInt;
+					}
+					else{
+						int tempInt = temp.addToReverse(intensity);
+						if(tempInt > reverseMax)
+							reverseMax = tempInt;
+					}
+				}else{
+					if(direction == 'F'){
+						this.dots.put(new Point(x,y), new DotData(intensity, 0));
+						if(intensity > forwardMax)
+							forwardMax = intensity;
+					}
+					else{
+						this.dots.put(new Point(x,y), new DotData(0, intensity));
+						if(intensity > reverseMax)
+							reverseMax = intensity;
+					}
+				}
+				
+			}
+			input.close();
+			this.repaint();
+		}catch(Exception e){
+			e.printStackTrace();
+		}
+	}
+
+	public String getSequence1Name(){
+		return this.sequence1Name;
+	}
+	
+	public String getSequence2Name(){
+		return this.sequence2Name;
+	}
+	
+	public void swap(){
+		int tempStart = this.sequence1Start;
+		int tempEnd = this.sequence1End;
+		int tempLength = this.sequence1Length;
+		String tempName = this.sequence1Name;
+		
+		this.sequence1Start = this.sequence2Start;
+		this.sequence1End = this.sequence2End;
+		this.sequence1Length = this.sequence2Length;
+		this.sequence1Name = this.sequence2Name;
+		
+		this.sequence2Start = tempStart;
+		this.sequence2End = tempEnd;
+		this.sequence2Name = tempName;
+		this.sequence1Length = tempLength;
+		
+	}
+	
+	public void setSequence1Length(int length){
+		this.sequence1Start = 1;
+		this.sequence1End = length;
+		this.sequence1Length = length;
+	}
+			
+	public void setSequence2Length(int length){
+		this.sequence2Start = 1;
+		this.sequence2End = length;
+		this.sequence2Length = length;
+	}
+	
+	public int getSequence1Length(){
+		return this.sequence1Length;
+	}
+	
+	public int getSequence2Length(){
+		return this.sequence2Length;
+	}
+	
+	public int getSequence1Start(){
+		return this.sequence1Start;
+	}
+	
+	public int getSequence1End(){
+		return this.sequence1End;
+	}
+	
+	public int getSequence2Start(){
+		return this.sequence2Start;
+	}
+	
+	public int getSequence2End(){
+		return this.sequence2End;
+	}		
+	
+	public void setSequenceStartEnd(TwoSequencePoint point, final int similarityLimit, boolean zoom, ArrayList<TwoSequencePoint> zoomer){
+		String title;
+		String message;
+		if(zoom){
+			title = "Zooming Out";
+			message = "Zooming Out.. Please wait..";
+		}else{
+			title = "Panning";
+			message = "Panning.. Please wait..";
+			zoomer.add(new TwoSequencePoint(this.sequence1Start, this.sequence1End, this.sequence2Start, this.sequence2End));
+		}
+		final MessageDialog dialog = new MessageDialog(parent,title,message);
+		dialog.setLocationRelativeTo(parent);
+	    dialog.setVisible(true);
+		//zoom out or pan
+		this.sequence1Start = point.getSequence1Start();
+		this.sequence1End = point.getSequence1End();
+		this.sequence2Start = point.getSequence2Start();
+		this.sequence2End = point.getSequence2End();
+								
+		Thread zoomThread = (new Thread(){
+			public void run(){
+				String command = "./dotplotquery matches.txt " + sequence1Start + " " + sequence1End + " " + 
+				sequence2Start + " " + sequence2End + " " + getXAxisLength() + " " + getYAxisLength() + " "
+				+ similarityLimit;
+				try{
+					Process p = Runtime.getRuntime().exec(command);					
+				 	BufferedReader input = new BufferedReader(new InputStreamReader(p.getInputStream()));
+				 	BufferedWriter output = new BufferedWriter(new FileWriter("dots.txt"));
+				 	String line;
+				 	while((line = input.readLine()) != null){					 		
+				 		output.write(line);
+				 		output.newLine();
+				 	}
+				 	output.close();
+				 	updateDots();
+					repaint();
+					if(dialog != null)
+						dialog.dispose();	
+				}catch(Exception e){e.printStackTrace();}
+			}
+		});
+		zoomThread.setPriority(Thread.MIN_PRIORITY);
+		zoomThread.start();											
+	}
+	
+	public void setSequence1Name(String name){
+		this.sequence1Name = name;
+		this.repaint();
+	}
+	
+	public void setSequence2Name(String name){
+		this.sequence2Name = name;
+		this.repaint();
+	}
+	
+	//This method changes the pane from grey background to white background - Useless somehow
+	public boolean isOpaque(){
+        return false;
+    }
+		
+	public void setParentDimension(Dimension d){
+    	this.parentDimension = d;    	
+    	this.yAxisLength = this.parentDimension.getHeight() - (3*topLeftY);
+    	this.xAxisLength = this.parentDimension.getWidth() - (3*topLeftX);
+    }
+	
+	public Dimension getParentDimension(){
+		return this.parentDimension;
+	}
+	
+	public void setStartPoint(Point point){
+		point.x -= 15;
+		point.y -= 28;
+		if(point.x < topLeftX)
+			point.x = topLeftX;
+		if(point.y < topLeftY)
+			point.y = topLeftY;
+		if(point.x > topLeftX + this.getXAxisLength())
+			point.x = (int)(topLeftX + this.getXAxisLength());
+		if(point.y > topLeftY + this.getYAxisLength())
+			point.y = (int)(topLeftY + this.getYAxisLength());
+		this.start = point;	
+	}
+	
+	public void setStartAndCurrentPointNull(){
+		this.start = null;
+		this.current = null;
+		this.repaint();
+	}
+	
+	public Point convertPointToSequenceIndex(Point point){		
+		
+		int sequence1Length = this.sequence1End - this.sequence1Start + 1;
+		int sequence2Length = this.sequence2End - this.sequence2Start + 1;
+		
+		int sequence1Index = (int)(((point.x - topLeftX) / this.getXAxisLength()) * sequence1Length) + this.sequence1Start;
+		int sequence2Index = (int)(((point.y - topLeftY) / this.getYAxisLength()) * sequence2Length) + this.sequence2Start;
+		
+		if(sequence1Index > this.sequence1End)
+			sequence1Index = -1;
+		
+		if(sequence2Index > this.sequence2End)
+			sequence2Index = -1;
+		
+		return new Point(sequence1Index, sequence2Index);
+	}
+	
+	public void setEndPoint(Point point,ArrayList<TwoSequencePoint> pointList, int labelSequence1Start, int labelSequence2Start,
+			int labelSequence1End, int labelSequence2End, final int similarityLimit){	
+		final MessageDialog dialog = new MessageDialog(parent,"Zooming In", "Zooming In.. Please wait..");
+		dialog.setLocationRelativeTo(parent);
+	    dialog.setVisible(true);		
+		//for zooming in
+		final int maxZoomInRange = 49;
+		point.x -= 15;
+		point.y -= 28;
+		if(point.x < topLeftX)
+			point.x = topLeftX;
+		if(point.y < topLeftY)
+			point.y = topLeftY;
+		if(point.x > topLeftX + this.getXAxisLength())
+			point.x = (int)(topLeftX + this.getXAxisLength());
+		if(point.y > topLeftY + this.getYAxisLength())
+			point.y = (int)(topLeftY + this.getYAxisLength());
+		this.end = point;	
+		
+		int minPointX = (int)this.start.getX() - topLeftX;
+		int minPointY = (int)this.start.getY() - topLeftY;
+		int maxPointX = (int)this.end.getX() - topLeftX;
+		int maxPointY = (int)this.end.getY() - topLeftY;
+		if(minPointX > maxPointX){
+			int temp = minPointX;
+			minPointX = maxPointX;
+			maxPointX = temp;
+		}
+		if(minPointY > maxPointY){
+			int temp = minPointY;
+			minPointY = maxPointY;
+			maxPointY = temp;
+		}			
+		
+		//int sequence1Length = this.sequence1End - this.sequence1Start + 1;		
+		//int newSequence1Start = (int)((minPointX / this.getXAxisLength()) * sequence1Length) + this.sequence1Start;
+		int newSequence1Start = labelSequence1Start;
+		//int newSequence1End = (int)((maxPointX / this.getXAxisLength()) * sequence1Length) + this.sequence1Start;
+		int newSequence1End = labelSequence1End;
+		
+		boolean stored = false;
+		
+		//int sequence2Length = this.sequence2End - this.sequence2Start;
+		//int newSequence2Start = (int)((minPointY / this.getYAxisLength()) * sequence2Length) + this.sequence2Start;
+		int newSequence2Start = labelSequence2Start;
+		//int newSequence2End = (int)((maxPointY / this.getYAxisLength()) * sequence2Length) + this.sequence2Start;
+		int newSequence2End = labelSequence2End;
+		
+		//Here I ensure that the distance between start and end is at least maxZoomInRange.
+		if(newSequence1End > this.sequence1End || newSequence1Start < this.sequence1Start ||
+				newSequence2End > this.sequence2End || newSequence2Start < this.sequence2Start){
+			//do nothing	
+		}else{		
+			if((newSequence1End - newSequence1Start) < maxZoomInRange){
+				newSequence1End = newSequence1Start + maxZoomInRange;
+				if(newSequence1End <= this.sequence1End){
+					//store previous point to allow for zooming out
+					pointList.add(new TwoSequencePoint(this.sequence1Start, this.sequence1End, this.sequence2Start, this.sequence2End));
+					stored = true;
+					this.sequence1Start = newSequence1Start;
+					this.sequence1End = newSequence1End;
+				}
+			}else{
+				//store previous point to allow for zooming out
+				pointList.add(new TwoSequencePoint(this.sequence1Start, this.sequence1End, this.sequence2Start, this.sequence2End));
+				stored = true;
+				this.sequence1Start = newSequence1Start;
+				this.sequence1End = newSequence1End;	
+			}							
+			
+			//Here I ensure that the distance between start and end is at least maxZoomInRange.
+			if((newSequence2End - newSequence2Start) < maxZoomInRange){
+				newSequence2End = newSequence2Start + maxZoomInRange;
+				if(newSequence2End <= this.sequence1End){
+					if(stored == false)
+						pointList.add(new TwoSequencePoint(this.sequence1Start, this.sequence1End, this.sequence2Start, this.sequence2End));
+					this.sequence2Start = newSequence2Start;
+					this.sequence2End = newSequence2End;
+				}
+			}else{
+				if(stored == false)
+					pointList.add(new TwoSequencePoint(this.sequence1Start, this.sequence1End, this.sequence2Start, this.sequence2End));
+				this.sequence2Start = newSequence2Start;
+				this.sequence2End = newSequence2End;	
+			}			
+			Thread zoomThread = (new Thread(){
+				public void run(){
+			try{
+				Process p = Runtime.getRuntime().exec("./dotplotquery matches.txt " + sequence1Start + " " + sequence1End + " " + 
+						sequence2Start + " " + sequence2End + " " + getXAxisLength() + " " + getYAxisLength() + " "
+						+ similarityLimit);				
+			 	BufferedReader input = new BufferedReader(new InputStreamReader(p.getInputStream()));
+			 	BufferedWriter output = new BufferedWriter(new FileWriter("dots.txt"));
+			 	String line;
+			 	while((line = input.readLine()) != null){
+			 		output.write(line);
+			 		output.newLine();
+			 	}
+			 	output.close();
+			 	updateDots();
+			 	start = null;
+				current = null;
+				repaint();				
+				if(dialog != null)
+					dialog.dispose();
+			}catch(Exception e){e.printStackTrace();}			
+				}
+			});
+			zoomThread.setPriority(Thread.MIN_PRIORITY);
+			zoomThread.start();	
+		}		
+	}
+	
+	public void setCurrentPoint(Point point){
+		point.x -= 15;
+		point.y -= 28;
+		if(point.x < topLeftX)
+			point.x = topLeftX;
+		if(point.y < topLeftY)
+			point.y = topLeftY;
+		if(point.x > topLeftX + this.getXAxisLength())
+			point.x = (int)(topLeftX + this.getXAxisLength());
+		if(point.y > topLeftY + this.getYAxisLength())
+			point.y = (int)(topLeftY + this.getYAxisLength());
+		this.current = point;		
+		this.repaint();
+	}
+	
+	public void paintComponent(Graphics g){			
+		startPoint = new Point(topLeftX, topLeftY);		
+		SwingUtilities.convertPointToScreen(startPoint, this);
+		
+		endPoint = new Point((int)(topLeftX + getXAxisLength()), (int)(topLeftY + getYAxisLength()));
+		SwingUtilities.convertPointToScreen(endPoint, this);
+		
+		g.setFont(new Font(Font.SANS_SERIF,Font.BOLD,12));
+		g.setColor(Color.BLACK);
+		//draw sequence 1 & sequence 2 name if available		
+		if(this.sequence1Name != null){
+			int stringLength = this.sequence1Name.length();
+			int xPoint = ((int)this.getXAxisLength() - stringLength) / 2;			
+			g.drawString(this.sequence1Name,(int)(xPoint*0.8),topLeftY-5);
+		}
+		if(this.sequence2Name != null){
+			Graphics2D g2d = (Graphics2D) g;
+			AffineTransform fontAT = new AffineTransform();
+			Font theFont = g2d.getFont();
+			
+			fontAT.rotate(Math.PI/2);
+			Font theDerivedFont = theFont.deriveFont(fontAT);
+			int stringLength = this.sequence2Name.length();
+			int yPoint = ((int)this.getYAxisLength() - stringLength) / 2;			
+			g2d.setFont(theDerivedFont);
+			g2d.drawString(this.sequence2Name,(int)(topLeftX + getXAxisLength()) + 5,(int)(yPoint*0.5));
+			g2d.setFont(theFont);			
+		}
+		//draw y-axis
+		//left of y
+		g.drawLine(topLeftX,topLeftY,topLeftX,(int)(topLeftY + getYAxisLength()));
+		//right of y
+		g.drawLine((int)(topLeftX + getXAxisLength()),topLeftY,(int)(topLeftX + getXAxisLength()),(int)(topLeftY + getYAxisLength()));
+		//draw x-axis
+		//lower of x
+		g.drawLine(topLeftX,(int)(topLeftY + getYAxisLength()),(int)(topLeftX + getXAxisLength()),(int)(topLeftY + getYAxisLength()));
+		//upper of x
+		g.drawLine(topLeftX,topLeftY,(int)(topLeftX + getXAxisLength()),topLeftY);
+		
+		
+		g.setFont(new Font(Font.SANS_SERIF,Font.BOLD,9));
+		//draw markers		
+		final int adjustFor1 = 1;//should be either 0 or 1
+		
+		if(this.sequence1Name != null){
+			int count = 0;
+			int intervalX = (int)getXAxisLength() / 5;
+			int intervalXSequence = (this.sequence1End - this.sequence1Start + adjustFor1) / 5;
+			int sequenceCurrent = this.sequence1Start - adjustFor1;
+			for(int x = topLeftX; count <= 5; x += intervalX, count++, sequenceCurrent += intervalXSequence){
+				if(count != 0 && count != 5){
+					g.drawLine(x,(int)(topLeftY + getYAxisLength()) - 3, x,(int)(topLeftY + getYAxisLength()) + 3);
+					g.drawString("" + sequenceCurrent, x - 3, (int)(topLeftY + getYAxisLength()) + 15);
+				}
+				else{
+					if(count == 0)
+						g.drawString("" + this.sequence1Start, x - 3, (int)(topLeftY + getYAxisLength()) + 15);
+					else
+						g.drawString("" + this.sequence1End, x - 3, (int)(topLeftY + getYAxisLength()) + 15);
+				}
+			}
+		}
+		
+		if(this.sequence2Name != null){
+			int intervalY = (int)getYAxisLength() / 5;
+			int count = 0;		
+			for(int y = topLeftY; count <= 5; y += intervalY, count++){			
+				if(count != 0 && count != 5)
+					g.drawLine(topLeftX-3,y,topLeftX + 3,y);															
+			}
+			
+			Graphics2D g2d = (Graphics2D) g;
+			AffineTransform fontAT = new AffineTransform();
+			Font theFont = g2d.getFont();
+			
+			fontAT.rotate(Math.PI/2);
+			Font theDerivedFont = theFont.deriveFont(fontAT);
+						
+			g2d.setFont(theDerivedFont);
+						
+			
+			int intervalYSequence = (this.sequence2End - this.sequence2Start + adjustFor1) / 5;
+			int sequenceCurrent = this.sequence2Start - adjustFor1;
+			count = 0;
+			for(int y = topLeftY; count <= 5; y += intervalY, count++, sequenceCurrent += intervalYSequence){																
+				if(count == 0)
+					g.drawString("" + this.sequence2Start, topLeftX-15,y - 5);
+				else if(count == 5)
+					g.drawString("" + this.sequence2End, topLeftX-15,y - 30);
+				else
+					g.drawString("" + sequenceCurrent, topLeftX-15,y - 30);
+			}
+			
+			g2d.setFont(theFont);
+		}				
+		
+		//draw box while dragging
+		if(this.start != null && this.current != null){
+			//left of y
+			g.drawLine((int)this.start.getX(),(int)this.start.getY(),(int)this.start.getX(),(int)this.current.getY());
+			//right of y
+			g.drawLine((int)this.current.getX(),(int)this.start.getY(),(int)this.current.getX(),(int)this.current.getY());
+			//draw x-axis
+			//lower of x
+			g.drawLine((int)this.start.getX(),(int)this.current.getY(),(int)this.current.getX(),(int)this.current.getY());
+			//upper of x
+			g.drawLine((int)this.start.getX(),(int)this.start.getY(),(int)this.current.getX(),(int)this.start.getY());
+		}
+		
+		//draw points		
+		drawPoints(g);					
+	}
+	
+	private void drawPoints(Graphics g){			
+		for(Enumeration<Point> e = this.dots.keys(); e.hasMoreElements();){
+			Point p = e.nextElement();
+			DotData d = this.dots.get(p);
+			if(d.getReverse() > 0 && d.getForward() > 0)
+				g.setColor(Color.GREEN);
+			else if(d.getForward() > 0)
+				g.setColor(Color.RED);
+			else if(d.getReverse() > 0)
+				g.setColor(Color.BLUE);
+			//g.setColor(new Color(255 - (forwardMax*3) + (d.getForward()*3),0 + d.getReverse(),0));
+			if(d.getForward() >= this.intensity || d.getReverse() >= this.intensity)
+				g.fillOval(p.x,p.y,2,2);
+		}		
+	}
+	
+	public double getYAxisLength(){
+ 		return this.yAxisLength;
+ 	}
+ 	public double getXAxisLength(){
+ 		return this.xAxisLength;
+ 	}
+}
+
+final class MessageDialog extends JDialog{
+	static final long serialVersionUID = 23122007;
+	public MessageDialog(Frame parent,String title, String message){
+		super(parent,title);
+		setLayout(new GridLayout(1,1));		
+		JLabel messageLabel = new JLabel(message,SwingConstants.CENTER);
+		add(messageLabel);
+		//setSize(200,90);
+		this.pack();
+		setLocationRelativeTo(parent);		
+		setVisible(true);
+	}
+}
+
+class DotData{
+	int forward;
+	int reverse;
+	
+	public DotData(int forward, int reverse){
+		this.forward = forward;
+		this.reverse = reverse;
+	}
+	
+	public int getForward(){
+		return forward;
+	}
+	
+	public int addToForward(int intensity){
+		return this.forward += intensity;
+	}
+	
+	public int getReverse(){
+		return reverse;
+	}
+	
+	public int addToReverse(int intensity){
+		return this.reverse += intensity;
+	}
+}

@@ -1,0 +1,173 @@
+package sirius.gpi;
+
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.util.ArrayList;
+import java.util.List;
+
+import sirius.utils.PredictionStats;
+import sirius.utils.Utils;
+
+public class ConsolidateResults2 {
+	public static void main(String[] args){
+		/*
+		 * Arguments used during GA	 
+		 * 2 or 4 => 2fold or 4fold features (DECIDED on 4 fold features)
+		 * 80 or 100 => Subset80 or Subset100 (DECIDED on 100)
+		 * 
+		 * 1) O or U => Oversampling or undersampling were used during GA (Fold diff = 1)	 
+		 * 
+		 * Arguments to be use for accuracy estimation
+		 * 1) 4 or -1 => Train 4 Fold or Train leave one out
+		 * 2) O, U or N => Oversample, Undersample or Neutral		 
+		 * 
+		 */
+		try{
+			if(args.length != 3){			
+				throw new Error("Arguments is not 3!");
+			}
+			String fileDirectory = Utils.selectDirectory("Please select Dir with the files");	
+			char GASamplingStyle = args[0].charAt(0);
+	
+			int trainingFold = Integer.parseInt(args[1]);
+			char trainingSamplingStyle = args[2].charAt(0);
+			List<List<PredictionStats>> pListList = new ArrayList<List<PredictionStats>>();
+			for(int x = 1; x <= 5 ; x++){
+				String inputFile = "Output_" + GASamplingStyle + "_" + trainingFold + "_" + 
+					trainingSamplingStyle + "_" + x + ".txt";				
+				BufferedReader input = new BufferedReader(
+						new FileReader(fileDirectory + inputFile));
+				String line;
+				List<Integer> classList = new ArrayList<Integer>();
+				List<Double> j48List = null;
+				List<Double> nbList = null;
+				List<Double> nn5List = null;
+				List<Double> smoList = null;
+				List<Double> aveList = null;
+				while((line = input.readLine()) != null){
+					if(line.indexOf("Classes: ") != -1){
+						int index = line.indexOf("Classes: ") + "Classes: ".length();
+						String[] sA = line.substring(index).split(",");
+						for(String s:sA){
+							classList.add(Integer.parseInt(s));
+						}
+					}else if(line.indexOf("J48: ") != -1){
+						j48List = readLineForDouble(line, "J48: ");
+					}else if(line.indexOf("NB: ") != -1){
+						nbList = readLineForDouble(line, "NB: ");
+					}else if(line.indexOf("NN5: ") != -1){
+						nn5List = readLineForDouble(line, "NN5: ");
+					}else if(line.indexOf("SMO: ") != -1){
+						smoList = readLineForDouble(line, "SMO: ");
+					}else if(line.indexOf("Ave: ") != -1){
+						aveList = readLineForDouble(line, "Ave: ");
+					}
+				}
+				input.close();
+				List<PredictionStats> pList = new ArrayList<PredictionStats>();
+				pList.add(new PredictionStats(classList, j48List, 0.5));
+				pList.add(new PredictionStats(classList, nbList, 0.5));
+				pList.add(new PredictionStats(classList, nn5List, 0.5));
+				pList.add(new PredictionStats(classList, smoList, 0.5));
+				pList.add(new PredictionStats(classList, aveList, 0.5));
+				pListList.add(pList);
+			}
+			consolidateResult(pListList, fileDirectory, GASamplingStyle, trainingFold, 
+					trainingSamplingStyle);
+		}catch(Exception e){e.printStackTrace();}
+	}
+	
+	private static List<Double> readLineForDouble(String line, String name){
+		List<Double> dList = new ArrayList<Double>();
+		int index = line.indexOf(name) + name.length();
+		String[] sA = line.substring(index).split(",");
+		for(String s:sA){
+			dList.add(Double.parseDouble(s));
+		}
+		return dList;
+	}
+	
+	private static void consolidateResult(List<List<PredictionStats>> predictionListList, 
+			String fileDirectory, char GASamplingStyle, int trainingFold, char trainingSampleStyle) 
+	throws Exception{
+		BufferedWriter output = new BufferedWriter(new FileWriter(fileDirectory + "Final_" + 
+				GASamplingStyle + "_" + trainingFold + "_" + trainingSampleStyle + ".txt"));
+		output.write("GASamplingStyle: " + GASamplingStyle); output.newLine();
+		output.write("TrainningMode: " + trainingFold); output.newLine();
+		output.write("TrainingSampleStyle: " + trainingSampleStyle); output.newLine();
+		for(int i = 0; i < predictionListList.get(0).size(); i++){			
+			switch(i){
+			case 0: output.write("Classifier: J48"); break;//j48
+			case 1: output.write("Classifier: NB"); break;//nb
+			case 2: output.write("Classifier: NN-5"); break;//nn5
+			case 3: output.write("Classifier: SMO"); break;//smo		
+			case 4: output.write("Classifier: Average"); break;//Average of j48, nb, nn5, smo
+			default: throw new Error("Unhandled case");
+			}
+			output.newLine();
+			double[] tp = new double[predictionListList.size()];
+			double[] maxtp = new double[predictionListList.size()];
+			double[] fp = new double[predictionListList.size()];
+			double[] maxfp = new double[predictionListList.size()];
+			double[] cov = new double[predictionListList.size()];
+			double[] maxcov = new double[predictionListList.size()];
+			double[] acc = new double[predictionListList.size()];
+			double[] maxacc = new double[predictionListList.size()];
+			double[] fpr = new double[predictionListList.size()];
+			double[] maxfpr = new double[predictionListList.size()];
+			double[] mcc = new double[predictionListList.size()];
+			double[] maxmcc = new double[predictionListList.size()];
+			for(int j = 0; j < predictionListList.size(); j++){
+				PredictionStats pred = predictionListList.get(j).get(i);
+				int maxIndex = pred.getMaxMCCIndex();
+				int index = pred.thresholdToThresholdIndex(0.5);
+				tp[j] = pred.getTP(index);
+				maxtp[j] = pred.getTP(maxIndex);
+				fp[j] = pred.getFP(index);
+				maxfp[j] = pred.getFP(maxIndex);
+				cov[j] = pred.getCoverage(index);
+				maxcov[j] = pred.getCoverage(maxIndex);
+				acc[j] = pred.getAccuracy(index);
+				maxacc[j] = pred.getAccuracy(maxIndex);
+				fpr[j] = pred.getFPRate(index);
+				maxfpr[j] = pred.getFPRate(maxIndex);
+				mcc[j] = pred.getMCC(index);
+				maxmcc[j] = pred.getMaxMCC();
+			}
+			write(output, tp, "TP", true);
+			write(output, fp, "FP", true);
+			write(output, cov, "Cov", false);
+			write(output, acc, "Acc", false);
+			write(output, fpr, "FP rate", false);			
+			write(output, mcc, "MCC", false);
+
+			write(output, maxtp, "max TP", true);
+			write(output, maxfp, "max FP", true);
+			write(output, maxcov, "max Cov", false);
+			write(output, maxacc, "max Acc", false);
+			write(output, maxfpr, "max FP rate", false);
+			write(output, maxmcc, "max MCC", false);
+			output.newLine();
+		}
+		output.close();
+	}
+	
+	private static void write(BufferedWriter output, double[] dList, String name, boolean isSum) 
+	throws Exception{
+		output.write(name + ": ");
+		double d = 0.0;
+		for(double a:dList){
+			d += a;
+		}
+		if(isSum == false){
+			d /= dList.length;			
+		}
+		output.write(d + "\t - ");
+		for(double a:dList){
+			output.write(a + ",");
+		}
+		output.newLine();
+	}
+}

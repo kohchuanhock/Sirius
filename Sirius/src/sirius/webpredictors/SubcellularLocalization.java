@@ -1,0 +1,215 @@
+package sirius.webpredictors;
+
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileReader;
+import java.io.ObjectInputStream;
+import java.util.ArrayList;
+import javax.swing.JOptionPane;
+
+import sirius.predictor.main.ClassifierData;
+import sirius.predictor.main.SequenceNameData;
+import sirius.trainer.features.Feature;
+import sirius.trainer.features.GenerateArff;
+import weka.classifiers.Classifier;
+import weka.core.Instance;
+import weka.core.Instances;
+/*
+ * This java file is got from decompiling my Polyadenylation.jar
+ * Need to properly fix and test it
+ */
+public class SubcellularLocalization
+{
+	ArrayList<SequenceNameData> data;
+	ClassifierData classifier_Plant_cTP;
+	ClassifierData classifier_Plant_mTP;
+	ClassifierData classifier_Plant_SP;
+	ClassifierData classifier_Plant_others;
+	ClassifierData classifier_nonPlant_mTP;
+	ClassifierData classifier_nonPlant_SP;
+	ClassifierData classifier_nonPlant_others;
+	File file;
+
+	public static void main(String[] args)
+	{
+		new SubcellularLocalization(args[0], args[1]);
+	}
+
+	public SubcellularLocalization(String organism, String inputFilename) {
+		this.file = new File("." + File.separator + "input" + File.separator + inputFilename);
+		try {
+			loadFastaFile(this.file); } catch (Exception e) {
+				e.printStackTrace();
+			}if (organism.compareToIgnoreCase("plant") == 0) {
+				this.classifier_Plant_cTP = loadClassifier("Plant_cTP");
+				this.classifier_Plant_mTP = loadClassifier("Plant_mTP");
+				this.classifier_Plant_SP = loadClassifier("Plant_SP");
+				this.classifier_Plant_others = loadClassifier("Plant_others");
+				for (int x = 0; x < this.data.size(); x++) {
+					double score_cTP = runClassifier(this.classifier_Plant_cTP, ((SequenceNameData)this.data.get(x)).getSequence());
+					double score_mTP = runClassifier(this.classifier_Plant_mTP, ((SequenceNameData)this.data.get(x)).getSequence());
+					double score_SP = runClassifier(this.classifier_Plant_SP, ((SequenceNameData)this.data.get(x)).getSequence());
+					double score_others = runClassifier(this.classifier_Plant_others, ((SequenceNameData)this.data.get(x)).getSequence());
+
+					System.out.println(((SequenceNameData)this.data.get(x)).getHeader());
+					System.out.println(((SequenceNameData)this.data.get(x)).getSequence());
+					System.out.println("Scores: (cTP = " + score_cTP + "), (mTP = " + score_mTP + "), (SP = " + score_SP + "), (others = " + 
+							score_others + ")");
+					if ((score_cTP >= score_mTP) && (score_cTP >= score_SP) && (score_cTP >= score_others))
+						System.out.println("Prediction: Chloroplast Transit Peptide");
+					else if ((score_mTP >= score_cTP) && (score_mTP >= score_SP) && (score_mTP >= score_others))
+						System.out.println("Prediction: Mitochondrial Peptide");
+					else if ((score_SP >= score_cTP) && (score_SP >= score_mTP) && (score_SP >= score_others))
+						System.out.println("Prediction: Signal Peptide");
+					else {
+						System.out.println("Prediction: Other Peptide");
+					}
+					System.out.println();
+				}
+			}
+			else if (organism.compareToIgnoreCase("nonPlant") == 0) {
+				this.classifier_nonPlant_mTP = loadClassifier("nonPlant_mTP");
+				this.classifier_nonPlant_SP = loadClassifier("nonPlant_SP");
+				this.classifier_nonPlant_others = loadClassifier("nonPlant_others");
+				for (int x = 0; x < this.data.size(); x++) {
+					double score_mTP = runClassifier(this.classifier_nonPlant_mTP, ((SequenceNameData)this.data.get(x)).getSequence());
+					double score_SP = runClassifier(this.classifier_nonPlant_SP, ((SequenceNameData)this.data.get(x)).getSequence());
+					double score_others = runClassifier(this.classifier_nonPlant_others, ((SequenceNameData)this.data.get(x)).getSequence());
+
+					System.out.println(((SequenceNameData)this.data.get(x)).getHeader());
+					System.out.println(((SequenceNameData)this.data.get(x)).getSequence());
+					System.out.println("Scores: (mTP = " + score_mTP + "), (SP = " + score_SP + "), (others = " + 
+							score_others + ")");
+					if ((score_mTP >= score_SP) && (score_mTP >= score_others))
+						System.out.println("Prediction: Mitochondrial Peptide");
+					else if ((score_SP >= score_mTP) && (score_SP >= score_others))
+						System.out.println("Prediction: Signal Peptide");
+					else {
+						System.out.println("Prediction: Other Peptide");
+					}
+					System.out.println();
+				}
+			}
+	}
+
+	private void reset() {
+		this.data = null;
+		this.data = new ArrayList<SequenceNameData>();
+	}
+
+	private void add(SequenceNameData data) {
+		this.data.add(data);
+	}
+
+	private void loadFastaFile(File file) throws Exception {
+		BufferedReader in = new BufferedReader(new FileReader(file.getAbsolutePath()));
+
+		int countSequenceNumber = 0;
+
+		reset();
+		String eachSequence = "";
+		String sequenceName = "";
+		String line;
+		while ((line = in.readLine()) != null)
+		{      
+			if (line.indexOf(">") == 0) {
+				countSequenceNumber++;
+				if (eachSequence.length() != 0) {
+					if (eachSequence.charAt(eachSequence.length() - 1) == '*')
+						add(new SequenceNameData(sequenceName, eachSequence.substring(0, eachSequence.length() - 1), ""));
+					else
+						add(new SequenceNameData(sequenceName, eachSequence, ""));
+				}
+				sequenceName = line;
+				eachSequence = "";
+			}
+			else {
+				eachSequence = eachSequence + line;
+				if (eachSequence.indexOf("=") != -1) {
+					in.close();
+					throw new Exception("Please ensure that " + file.getAbsolutePath() + " is in FASTA format.");
+				}
+			}
+		}
+		in.close();
+		if (countSequenceNumber == 0) {
+			throw new Exception("Please ensure that " + file.getAbsolutePath() + " is in FASTA format.");
+		}
+		if (eachSequence.charAt(eachSequence.length() - 1) == '*')
+			add(new SequenceNameData(sequenceName, eachSequence.substring(0, eachSequence.length() - 1), ""));
+		else
+			add(new SequenceNameData(sequenceName, eachSequence, ""));
+	}
+
+	private ClassifierData loadClassifier(String filename)
+	{
+		try {
+			File file = new File("." + File.separator + "classifiers" + File.separator + filename + ".classifierone");
+			FileInputStream fis = new FileInputStream(file);
+			ObjectInputStream ois = new ObjectInputStream(fis);
+
+			int classifierNum = ois.readInt();
+			String classifierName = (String)ois.readObject();
+			String classifierOneSettings = (String)ois.readObject();
+			Instances instances = (Instances)ois.readObject();
+			Classifier classifierOne = (Classifier)ois.readObject();
+			String sequenceType = (String)ois.readObject();
+			int scoringMatrixIndex = ois.readInt();
+			int countingStyleIndex = ois.readInt();
+			int setUpstream = -1;
+			int setDownstream = -1;
+			String classifierTwoSettings = "";
+			Instances instances2 = null;
+			Classifier classifierTwo = null;
+			if (classifierNum == 2) {
+				setUpstream = ois.readInt();
+				setDownstream = ois.readInt();
+				classifierTwoSettings = (String)ois.readObject();
+				instances2 = (Instances)ois.readObject();
+				classifierTwo = (Classifier)ois.readObject();
+			}
+			ois.close();
+			ClassifierData classifierData = new ClassifierData(classifierNum, classifierName, instances, 
+					classifierOne, classifierTwo, classifierOneSettings, classifierTwoSettings, setUpstream, 
+					setDownstream, instances2, sequenceType, scoringMatrixIndex, countingStyleIndex);      
+			return classifierData;
+		} catch (Exception e) {
+			e.printStackTrace();
+		}return null;
+	}
+
+	private double runClassifier(ClassifierData classifierData, String sequence)
+	{
+		if (classifierData == null) {
+			System.out.println("Errors");
+			return 0.0D;
+		}
+		try {
+			Classifier classifier = classifierData.getClassifierOne();
+
+			Instances inst = classifierData.getInstances();
+			ArrayList<Feature> featureDataArrayList = new ArrayList<Feature>();
+			for (int x = 0; x < inst.numAttributes() - 1; x++)
+			{
+				featureDataArrayList.add(Feature.loadFeatureViaName(inst.attribute(x).name()));
+			}
+
+			Instance tempInst = new Instance(inst.numAttributes());
+			tempInst.setDataset(inst);
+			for (int z = 0; z < inst.numAttributes() - 1; z++)
+			{
+				tempInst.setValue(z, (Double)GenerateArff.getMatchCount(
+						"+1_Index(-1)", sequence, featureDataArrayList.get(z), classifierData.getScoringMatrixIndex(), 
+						classifierData.getCountingStyleIndex(), classifierData.getScoringMatrix()));
+			}
+
+			tempInst.setValue(inst.numAttributes() - 1, "pos");
+			double[] results = classifier.distributionForInstance(tempInst);
+			return results[0];
+		} catch (Exception e) {
+			JOptionPane.showMessageDialog(null, "Exception Occured", "Error", 0);
+			e.printStackTrace();
+		}return -1.0D;
+	}
+}

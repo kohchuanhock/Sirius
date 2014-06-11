@@ -1,0 +1,5 @@
+LastWorkingDirectoryLocation: /Users/kohchuanhock/Documents/FuWorkData/PhD/Sirius/Steve/Second Run
+LastClassifierFileLocationByLoader: /Users/kohchuanhock/Documents/FuWorkData/PhD/Sirius/Steve/Second Run/SMOWithPBKKernel.classifierone
+LoaderOutputDirectory: /Users/kohchuanhock/Documents/FuWorkData/PhD/Sirius/Steve/Second Run
+LastFastaFileLocationByLoader: /Users/kohchuanhock/Documents/FuWorkData/PhD/Sirius/Steve/Second Run/All.fasta
+LastLoadFeatureLocation: /Users/kohchuanhock/Documents/FuWorkData/PhD/Sirius/Steve/Second Run/Properties.features

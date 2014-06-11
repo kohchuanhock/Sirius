@@ -1,0 +1,182 @@
+/*==========================================================================
+	  SiriusPSB - A Generic System for Analysis of Biological Sequences
+	        http://compbio.ddns.comp.nus.edu.sg/~sirius/index.php
+============================================================================
+	  Copyright (C) 2007 by Chuan Hock Koh
+	
+	  This program is free software; you can redistribute it and/or
+	  modify it under the terms of the GNU General Public
+	  License as published by the Free Software Foundation; either
+	  version 3 of the License, or (at your option) any later version.
+	
+	  This program is distributed in the hope that it will be useful,
+	  but WITHOUT ANY WARRANTY; without even the implied warranty of
+	  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+	  General Public License for more details.
+	  	
+	  You should have received a copy of the GNU General Public License
+	  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+==========================================================================*/
+package sirius.trainer.features;
+
+import java.util.Random;
+import java.util.StringTokenizer;
+
+import commons.sequence.FastaFormat;
+
+import sirius.trainer.main.ScoringMatrix;
+import sirius.trainer.step2.Physiochemical2;
+
+public class MetaFeature extends Feature{
+	private boolean isLocal;
+	private int physiochemical2;
+	private boolean isPercentage;
+	private String fromString;
+	private String toString;
+	private String prefixString;
+	private String suffixString;
+	private boolean headerLocal;
+	
+	public MetaFeature(String name,char type,int physiochemical2Int, int windowFrom, int windowTo, boolean isLocal, 
+			boolean isPercentage){
+		super(name,null,type);
+		this.isLocal = isLocal;
+		this.windowFrom = windowFrom;
+		this.windowTo = windowTo;
+		this.physiochemical2 = physiochemical2Int;
+		this.isPercentage = isPercentage;
+		StringTokenizer st = new StringTokenizer(name, "_");
+		st.nextToken();//type
+		String feature = st.nextToken();		
+		if(feature.equalsIgnoreCase("Header")){
+			if(st.hasMoreTokens()){				
+				this.headerLocal = true;
+				this.fromString = st.nextToken();
+				this.toString = st.nextToken();
+				this.prefixString = st.nextToken();
+				this.suffixString = st.nextToken();
+			}else
+				this.headerLocal = false;
+		}
+		setDetails(name);
+	}
+	
+	public MetaFeature(String name){
+		super(name, null, 'X');
+		StringTokenizer st = new StringTokenizer(name, "_");
+		st.nextToken();//type
+		String feature = st.nextToken();		
+		if(feature.equalsIgnoreCase("Header")){
+			if(st.hasMoreTokens()){
+				this.headerLocal = true;
+				this.fromString = st.nextToken();
+				this.toString = st.nextToken();
+				this.prefixString = st.nextToken();
+				this.suffixString = st.nextToken();
+			}else
+				this.headerLocal = false;
+		}else if(feature.equalsIgnoreCase("Sequence")){
+			this.physiochemical2 = Integer.parseInt(st.nextToken());
+			if(st.hasMoreTokens()){//means local
+				this.isLocal = true;
+				this.isPercentage = Boolean.parseBoolean(st.nextToken());
+				this.windowFrom = Integer.parseInt(st.nextToken());
+				this.windowTo = Integer.parseInt(st.nextToken());
+			}else
+				this.isLocal = false;
+		}else
+			throw new Error("Unknown feature: " + feature);	
+		setDetails(name);
+	}
+	
+	private void setDetails(String name){
+		if(name.indexOf("Header") != -1)
+			this.details = "Header Information";
+		else if(name.indexOf("Sequence") != -1){
+			this.details = "Sequence Information";
+			if(this.isLocal){			
+				if(this.isPercentage)
+					this.details += ", PercentageWindow(" + windowFrom + " , " + windowTo + ")";	
+				else
+					this.details += ", Window(" + windowFrom + " , " + windowTo + ")";
+			}
+			if(this.physiochemical2 > 0)
+				this.details += ", " + Physiochemical2.indexToName(this.physiochemical2);
+		}else 
+			throw new Error("Unknown: " + name);
+	}
+	
+	public static Feature loadSettings(String line, char type){
+		String name = line.substring(line.indexOf("Name: ") + ("Name: ").length());		
+		return new MetaFeature(name);
+	}
+	@Override
+	public Object computeDNA(FastaFormat fastaFormat) {
+		if(this.name.indexOf("Header") != -1){	
+			return returnHeader(fastaFormat.getHeader());
+		}else if(this.name.indexOf("Sequence") != -1){			
+			if(this.isLocal){//local
+				int startIndex = fastaFormat.getStartIndex(this.windowFrom,this.isPercentage);
+		    	int endIndex = fastaFormat.getEndIndex(this.windowTo,this.isPercentage);		    	
+		    	return fastaFormat.getSequence().substring(startIndex,endIndex);		    	
+			}else{//global				
+		    	return fastaFormat.getSequence();
+			}
+				
+		}else
+			throw new Error("Unknown Name: " + name);		
+	}
+	
+	private String returnHeader(String header){
+		if(this.headerLocal == false)
+			return header;
+		else{
+			String returnString = "";
+			int beginIndex = header.indexOf(this.fromString);
+			int endIndex = header.indexOf(this.toString);
+			if(beginIndex == -1)
+				beginIndex = 0;
+			if(endIndex == -1)
+				endIndex = header.length();
+			returnString += header.substring(beginIndex, endIndex);					
+			return this.prefixString + returnString.trim() + this.suffixString;
+		}
+	}
+
+	@Override
+	public Object computeProtein(FastaFormat fastaFormat,
+			int scoringMatrixIndex, int countingStyleIndex,
+			ScoringMatrix scoringMatrix) {
+		if(this.name.indexOf("Header") != -1){
+			return returnHeader(fastaFormat.getHeader());
+		}else if(this.name.indexOf("Sequence") != -1){			
+			if(this.isLocal){//local
+				int startIndex = fastaFormat.getStartIndex(this.windowFrom,this.isPercentage);
+		    	int endIndex = fastaFormat.getEndIndex(this.windowTo,this.isPercentage);
+		    	if(this.physiochemical2 > 0){
+		    		Physiochemical2 p2 = new Physiochemical2(Physiochemical2.indexToName(this.physiochemical2));
+		    		return p2.OriginalSequenceToPhysiochemical2Sequence(fastaFormat.getSequence().substring(startIndex,endIndex));
+		    	}else
+		    		return fastaFormat.getSequence().substring(startIndex,endIndex);		    	
+			}else{//global
+				if(this.physiochemical2 > 0){
+		    		Physiochemical2 p2 = new Physiochemical2(Physiochemical2.indexToName(this.physiochemical2));
+		    		return p2.OriginalSequenceToPhysiochemical2Sequence(fastaFormat.getSequence());
+		    	}else
+		    		return fastaFormat.getSequence();
+			}
+				
+		}else
+			throw new Error("Unknown Name: " + name);	
+	}
+
+	@Override
+	public String saveString(String saveDirectory) {
+		return "Type: " + type + " Name: " + this.name;		
+	}
+
+	@Override
+	public Feature mutate(Random rand, int windowMin, int windowMax) {
+		throw new Error("Unhandled case");
+	}
+}

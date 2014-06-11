@@ -1,0 +1,129 @@
+/*==========================================================================
+	  SiriusPSB - A Generic System for Analysis of Biological Sequences
+	        http://compbio.ddns.comp.nus.edu.sg/~sirius/index.php
+============================================================================
+	  Copyright (C) 2007 by Chuan Hock Koh
+	
+	  This program is free software; you can redistribute it and/or
+	  modify it under the terms of the GNU General Public
+	  License as published by the Free Software Foundation; either
+	  version 3 of the License, or (at your option) any later version.
+	
+	  This program is distributed in the hope that it will be useful,
+	  but WITHOUT ANY WARRANTY; without even the implied warranty of
+	  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+	  General Public License for more details.
+	  	
+	  You should have received a copy of the GNU General Public License
+	  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+==========================================================================*/
+package sirius.nnsearcher.main;
+
+import java.io.Serializable;
+import java.util.Enumeration;
+
+import sirius.main.ApplicationData;
+import sirius.trainer.features.Feature;
+import sirius.trainer.features.GenerateFeatures;
+import sirius.utils.FastaFormat;
+import weka.core.Attribute;
+
+public class Constraints implements Serializable{
+	static final long serialVersionUID = sirius.Sirius.version;
+	
+	private Feature featureData;
+	/*
+	 * 0) >= 
+	 * 1) >
+	 * 2) ==
+	 * 3) !=
+	 * 4) <=
+	 * 5) < 	  
+	 */
+	private int operator;
+	private double value;
+	private Attribute attributeName;
+	private int index;
+	
+	public Constraints(Feature featureData, int operator, double value){
+		this.featureData = featureData;
+		this.operator = operator;
+		this.value = value;
+		this.attributeName = new Attribute(featureData.getName());
+		this.index = -1;
+	}
+	
+	public Feature getStep2FeatureData(){ return this.featureData; }
+	
+	public double getValue(){ return this.value; }
+	
+	public int getOperator(){ return this.operator; }
+	
+	public String getOperatorString(){
+		switch(this.operator){
+		case 0:	return ">=";
+		case 1:	return ">";
+		case 2:	return "==";
+		case 3:	return "!=";
+		case 4:	return "<=";
+		case 5:	return "<";
+		default: return "Unknown Operator";
+		}
+	}
+	
+	public String display(){ return this.featureData.getDetails() + " " + getOperatorString() + " " + getValue(); }
+	
+	@SuppressWarnings("unchecked")
+	private void findIndex(weka.core.Instance instance){		
+		for (Enumeration<Attribute> e = instance.enumerateAttributes(); e.hasMoreElements();){
+		       Attribute attr = e.nextElement();
+		       if(attr.name().compareTo(this.attributeName.name()) == 0){
+		    	   this.index = attr.index();
+		    	   break;
+		       }
+		}
+	}
+	
+	public boolean isViolated(FastaFormat fastaFormat, weka.core.Instance instance, ApplicationData applicationData){
+		double attributeValue;
+		if(instance == null){
+			//attribute not found in Instance
+			//generate it
+			attributeValue = GenerateFeatures.getValue(fastaFormat, this.featureData,applicationData);
+		}else{
+			if(this.index == -1)
+				//find the index of attribute in instance
+				findIndex(instance);		
+			else if(instance.attribute(this.index).name().compareTo(this.attributeName.name()) != 0)
+				findIndex(instance);
+			if(this.index == -1)
+				//attribute not found in Instance
+				//generate it
+				attributeValue = GenerateFeatures.getValue(fastaFormat, this.featureData,applicationData);
+			else
+				attributeValue = instance.value(this.index);
+		}
+		
+		
+		//Then check if it violate the constraint
+		/*
+		 * 0) >= 
+		 * 1) >
+		 * 2) ==
+		 * 3) !=
+		 * 4) <=
+		 * 5) < 	  
+		 */
+		boolean violated = true;
+		switch(operator){
+		case 0: if(attributeValue >= this.value) violated = false; break;
+		case 1: if(attributeValue > this.value) violated = false; break;
+		case 2: if(attributeValue == this.value) violated = false; break;
+		case 3: if(attributeValue != this.value) violated = false; break;
+		case 4: if(attributeValue <= this.value) violated = false; break;
+		case 5: if(attributeValue < this.value) violated = false; break;
+		default: throw new Error("Unknown Operator");
+		}					
+		return violated;
+	}
+}

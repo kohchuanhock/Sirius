@@ -1,0 +1,53 @@
+K 25
+svn:wc:ra_dav:version-url
+V 85
+/svnroot/siriuspsb/!svn/ver/7/Sirius/src/sirius/trainer/features/gui/geneticalgorithm
+END
+GeneticAlgorithmInputData.java
+K 25
+svn:wc:ra_dav:version-url
+V 117
+/svnroot/siriuspsb/!svn/ver/18/Sirius/src/sirius/trainer/features/gui/geneticalgorithm/GeneticAlgorithmInputData.java
+END
+SettingsDialog.java
+K 25
+svn:wc:ra_dav:version-url
+V 106
+/svnroot/siriuspsb/!svn/ver/90/Sirius/src/sirius/trainer/features/gui/geneticalgorithm/SettingsDialog.java
+END
+GeneticAlgorithm.java
+K 25
+svn:wc:ra_dav:version-url
+V 108
+/svnroot/siriuspsb/!svn/ver/88/Sirius/src/sirius/trainer/features/gui/geneticalgorithm/GeneticAlgorithm.java
+END
+GeneticAlgorithmDialog.java
+K 25
+svn:wc:ra_dav:version-url
+V 114
+/svnroot/siriuspsb/!svn/ver/69/Sirius/src/sirius/trainer/features/gui/geneticalgorithm/GeneticAlgorithmDialog.java
+END
+GASettings.java
+K 25
+svn:wc:ra_dav:version-url
+V 102
+/svnroot/siriuspsb/!svn/ver/65/Sirius/src/sirius/trainer/features/gui/geneticalgorithm/GASettings.java
+END
+GASettingsInterface.java
+K 25
+svn:wc:ra_dav:version-url
+V 111
+/svnroot/siriuspsb/!svn/ver/83/Sirius/src/sirius/trainer/features/gui/geneticalgorithm/GASettingsInterface.java
+END
+ViewFeaturesDialog.java
+K 25
+svn:wc:ra_dav:version-url
+V 110
+/svnroot/siriuspsb/!svn/ver/50/Sirius/src/sirius/trainer/features/gui/geneticalgorithm/ViewFeaturesDialog.java
+END
+RunGA.java
+K 25
+svn:wc:ra_dav:version-url
+V 96
+/svnroot/siriuspsb/!svn/ver/5/Sirius/src/sirius/trainer/features/gui/geneticalgorithm/RunGA.java
+END

@@ -1,0 +1,197 @@
+10
+
+dir
+11
+https://siriuspsb.svn.sourceforge.net/svnroot/siriuspsb/Sirius/src/sirius
+https://siriuspsb.svn.sourceforge.net/svnroot/siriuspsb
+
+
+
+2010-08-17T01:40:14.613400Z
+11
+kohchuanhock
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+a68ea0ef-1a4a-4dbf-bb3c-59c12a7ff77b
+
+MainFrame.java
+file
+83
+
+
+
+2011-02-20T10:59:56.000000Z
+1cf3e220df582356831206d27c7ec622
+2011-02-20T13:36:51.734702Z
+83
+kohchuanhock
+has-props
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+16864
+
+MessageDialog.java
+file
+
+
+
+
+2010-06-11T23:08:33.000000Z
+9a59d476c1d93dde83d18737b82e2d58
+2010-06-11T23:23:55.765096Z
+5
+kohchuanhock
+has-props
+
+Sirius.java
+file
+83
+
+
+
+2011-02-20T10:59:40.000000Z
+06eaa97136f2572c7123ba2c0cf8aac6
+2011-02-20T13:36:51.734702Z
+83
+kohchuanhock
+has-props
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+19226
+
+SiriusConstants.java
+file
+
+
+
+
+2010-06-11T23:08:27.000000Z
+dbdeabfba9260e5fdb1b8d9b3ec4bb78
+2010-06-11T23:23:55.765096Z
+5
+kohchuanhock
+has-props
+
+WekaTestCode.java
+file
+
+
+
+
+2010-08-09T02:03:30.000000Z
+5ee466a988cf02715893c184ef51af7d
+2010-08-09T03:13:13.860358Z
+9
+kohchuanhock
+has-props
+
+blast
+dir
+
+clustering
+dir
+
+dotplot
+dir
+
+gpi
+dir
+
+greg
+dir
+
+main
+dir
+
+membranetype
+dir
+
+misc
+dir
+
+nnsearcher
+dir
+
+predictor
+dir
+
+tll
+dir
+
+
+
+add
+
+
+
+
+
+
+
+
+
+
+
+
+
+copied
+https://siriuspsb.svn.sourceforge.net/svnroot/siriuspsb/Sirius/src/sirius/greg
+81
+
+trainer
+dir
+
+webpredictors
+dir
+
+weka
+dir
+

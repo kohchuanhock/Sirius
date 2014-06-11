@@ -1,0 +1,141 @@
+10
+
+dir
+11
+https://siriuspsb.svn.sourceforge.net/svnroot/siriuspsb/Sirius/src/sirius/trainer/features/gui
+https://siriuspsb.svn.sourceforge.net/svnroot/siriuspsb
+
+
+
+2010-07-01T13:15:32.651495Z
+7
+kohchuanhock
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+a68ea0ef-1a4a-4dbf-bb3c-59c12a7ff77b
+
+ClassifierFeatureDialog.java
+file
+
+
+
+
+2010-06-11T23:13:43.000000Z
+385a3c875938058d0c2d35bfd88ab5ea
+2010-06-11T23:23:55.765096Z
+5
+kohchuanhock
+has-props
+
+PhysioChemicalDialog.java
+file
+
+
+
+
+2010-06-11T23:13:42.000000Z
+e1a44de12f095a054709d732bef66c2a
+2010-06-11T23:23:55.765096Z
+5
+kohchuanhock
+has-props
+
+correlation
+dir
+
+kgram
+dir
+
+MetaFeatureDialog.java
+file
+
+
+
+
+2010-06-11T23:13:43.000000Z
+eda3510738a7ecaa119f232a7b7edbd9
+2010-06-11T23:23:55.765096Z
+5
+kohchuanhock
+has-props
+
+basicphysiochemical
+dir
+
+Basic2PhysioChemicalFeaturePane.java
+file
+22
+
+
+
+2010-12-12T14:31:26.000000Z
+1fb6ed7265511ef4fa4dd85106734f89
+2010-12-12T14:42:30.997947Z
+22
+kohchuanhock
+has-props
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+12992
+
+geneticalgorithm
+dir
+
+positionspecificfeature
+dir
+
+advancedphysiochemical
+dir
+
+physiochemicalgram
+dir
+
+multiplekgram
+dir
+
+SelectFeaturesDialog.java
+file
+
+
+
+
+2010-06-11T23:13:41.000000Z
+7e2ac5d90564abc8c724ebfab6979280
+2010-06-11T23:23:55.765096Z
+5
+kohchuanhock
+has-props
+
+ratio
+dir
+

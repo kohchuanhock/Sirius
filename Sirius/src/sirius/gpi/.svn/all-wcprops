@@ -1,0 +1,71 @@
+K 25
+svn:wc:ra_dav:version-url
+V 52
+/svnroot/siriuspsb/!svn/ver/27/Sirius/src/sirius/gpi
+END
+GPI.java
+K 25
+svn:wc:ra_dav:version-url
+V 61
+/svnroot/siriuspsb/!svn/ver/83/Sirius/src/sirius/gpi/GPI.java
+END
+GPI2.java
+K 25
+svn:wc:ra_dav:version-url
+V 62
+/svnroot/siriuspsb/!svn/ver/83/Sirius/src/sirius/gpi/GPI2.java
+END
+IndependentGPIClassifierShellGenerator.java
+K 25
+svn:wc:ra_dav:version-url
+V 96
+/svnroot/siriuspsb/!svn/ver/45/Sirius/src/sirius/gpi/IndependentGPIClassifierShellGenerator.java
+END
+IndependentGPIClassifier.java
+K 25
+svn:wc:ra_dav:version-url
+V 82
+/svnroot/siriuspsb/!svn/ver/83/Sirius/src/sirius/gpi/IndependentGPIClassifier.java
+END
+SubmitGPI.java
+K 25
+svn:wc:ra_dav:version-url
+V 67
+/svnroot/siriuspsb/!svn/ver/38/Sirius/src/sirius/gpi/SubmitGPI.java
+END
+SortFeatureByMI.java
+K 25
+svn:wc:ra_dav:version-url
+V 73
+/svnroot/siriuspsb/!svn/ver/33/Sirius/src/sirius/gpi/SortFeatureByMI.java
+END
+SubmitGPI2.java
+K 25
+svn:wc:ra_dav:version-url
+V 68
+/svnroot/siriuspsb/!svn/ver/40/Sirius/src/sirius/gpi/SubmitGPI2.java
+END
+Obtain155Fasta.java
+K 25
+svn:wc:ra_dav:version-url
+V 72
+/svnroot/siriuspsb/!svn/ver/65/Sirius/src/sirius/gpi/Obtain155Fasta.java
+END
+ReadScoreFile.java
+K 25
+svn:wc:ra_dav:version-url
+V 71
+/svnroot/siriuspsb/!svn/ver/49/Sirius/src/sirius/gpi/ReadScoreFile.java
+END
+ConsolidateResults2.java
+K 25
+svn:wc:ra_dav:version-url
+V 77
+/svnroot/siriuspsb/!svn/ver/47/Sirius/src/sirius/gpi/ConsolidateResults2.java
+END
+CorrectScoreFile.java
+K 25
+svn:wc:ra_dav:version-url
+V 74
+/svnroot/siriuspsb/!svn/ver/47/Sirius/src/sirius/gpi/CorrectScoreFile.java
+END

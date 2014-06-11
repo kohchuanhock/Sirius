@@ -1,0 +1,77 @@
+K 25
+svn:wc:ra_dav:version-url
+V 63
+/svnroot/siriuspsb/!svn/ver/11/Sirius/src/sirius/predictor/main
+END
+SequenceTableModel.java
+K 25
+svn:wc:ra_dav:version-url
+V 86
+/svnroot/siriuspsb/!svn/ver/5/Sirius/src/sirius/predictor/main/SequenceTableModel.java
+END
+ScoreGraphPane.java
+K 25
+svn:wc:ra_dav:version-url
+V 82
+/svnroot/siriuspsb/!svn/ver/5/Sirius/src/sirius/predictor/main/ScoreGraphPane.java
+END
+SequenceNameTableModel.java
+K 25
+svn:wc:ra_dav:version-url
+V 91
+/svnroot/siriuspsb/!svn/ver/11/Sirius/src/sirius/predictor/main/SequenceNameTableModel.java
+END
+SequenceNameData.java
+K 25
+svn:wc:ra_dav:version-url
+V 85
+/svnroot/siriuspsb/!svn/ver/18/Sirius/src/sirius/predictor/main/SequenceNameData.java
+END
+SiriusClassifier.java
+K 25
+svn:wc:ra_dav:version-url
+V 85
+/svnroot/siriuspsb/!svn/ver/92/Sirius/src/sirius/predictor/main/SiriusClassifier.java
+END
+PredictorFrame.java
+K 25
+svn:wc:ra_dav:version-url
+V 83
+/svnroot/siriuspsb/!svn/ver/72/Sirius/src/sirius/predictor/main/PredictorFrame.java
+END
+ClassifierDetailsDialog.java
+K 25
+svn:wc:ra_dav:version-url
+V 91
+/svnroot/siriuspsb/!svn/ver/5/Sirius/src/sirius/predictor/main/ClassifierDetailsDialog.java
+END
+FeaturesDetailTableModel.java
+K 25
+svn:wc:ra_dav:version-url
+V 92
+/svnroot/siriuspsb/!svn/ver/5/Sirius/src/sirius/predictor/main/FeaturesDetailTableModel.java
+END
+MotifsTableModel.java
+K 25
+svn:wc:ra_dav:version-url
+V 84
+/svnroot/siriuspsb/!svn/ver/5/Sirius/src/sirius/predictor/main/MotifsTableModel.java
+END
+MotifListDialog.java
+K 25
+svn:wc:ra_dav:version-url
+V 83
+/svnroot/siriuspsb/!svn/ver/5/Sirius/src/sirius/predictor/main/MotifListDialog.java
+END
+ClassifierTableModel.java
+K 25
+svn:wc:ra_dav:version-url
+V 88
+/svnroot/siriuspsb/!svn/ver/5/Sirius/src/sirius/predictor/main/ClassifierTableModel.java
+END
+ClassifierData.java
+K 25
+svn:wc:ra_dav:version-url
+V 83
+/svnroot/siriuspsb/!svn/ver/72/Sirius/src/sirius/predictor/main/ClassifierData.java
+END
