@@ -45,6 +45,7 @@ import sirius.trainer.step4.RunClassifierWithNoLocationIndex;
 import sirius.utils.PredictionStats;
 import weka.core.Instances;
 
+// Test Github
 public class Sirius {
 	public final static long version = 0303;
     
